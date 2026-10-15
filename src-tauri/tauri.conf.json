@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Shelfmark",
+  "version": "0.1.1",
+  "identifier": "com.shelfmark.inventory",
+  "build": {
+    "beforeDevCommand": "npm run dev -- --port 5174",
+    "devUrl": "http://127.0.0.1:5174",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Shelfmark",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 1040,
+        "minHeight": 680,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "category": "Utility",
+    "shortDescription": "Local inventory catalogue",
+    "longDescription": "Search and organize a local index of Second Life inventory metadata.",
+    "windows": {
+      "nsis": { "displayLanguageSelector": false }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFCRDM1RDJCNjQ3QkJDQUIKUldTcnZIdGtLMTNUcTlZZWRNcGNnMG43a0N6R2dxMDdvQkpINzVhZkt3RkdXT09Cb1lxbGk4RksK",
+      "endpoints": [
+        "https://github.com/Nowalski/Shelfmark_sl/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

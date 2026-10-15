@@ -1,0 +1,34 @@
+Shelfmark Personal Use License
+Copyright (c) 2026 Shelfmark. All rights reserved.
+
+This license applies to the Shelfmark source code and accompanying materials
+in this repository and releases distributed under these terms from version
+0.1.1 onward (the “Software”). Earlier releases remain governed by the license
+included with those copies.
+
+You may download, install, run, inspect, and privately modify the Software for
+your own personal, non-commercial use. You may make private backup copies for
+that use.
+
+Except for viewing and forking through GitHub’s public-repository features,
+you may not publish, upload, sublicense, sell, rent, host, or distribute the
+Software or modified copies to others. Any GitHub fork remains subject to
+these terms: you may not sell it, rebrand it, or distribute it elsewhere.
+You may not provide the Software as a paid service, remove or replace its
+attribution, or claim that you created the original Software. These
+restrictions apply to source code and compiled copies.
+
+The public repository and any GitHub fork are also subject to
+[GitHub’s terms](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service).
+Those platform permissions do not grant permission to sell the Software or
+distribute it outside GitHub.
+
+No other rights are granted. All rights not expressly granted above are
+reserved by the copyright holder. To request permission for another use, open
+an issue in the official repository before using or distributing the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+FROM THE SOFTWARE OR ITS USE.

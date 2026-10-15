@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.playwright-cli/
+*.tsbuildinfo
+src-tauri/target/
+src-tauri/gen/
+*.sqlite3
+*.db
+*.inv
+*.inv.gz
+.env*
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+*.log

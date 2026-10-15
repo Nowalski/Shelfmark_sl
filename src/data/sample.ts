@@ -1,0 +1,47 @@
+import type { InventoryItem } from '../domain/types';
+
+const avatarId = 'sample-avatar';
+const item = (
+  id: string,
+  name: string,
+  path: string[],
+  kind: InventoryItem['kind'],
+  createdAt: string,
+  extra: Partial<InventoryItem> = {},
+): InventoryItem => ({ id, avatarId, name, path, kind, createdAt, tags: [], ...extra });
+
+export const sampleItems: InventoryItem[] = [
+  item('sm-001', 'Harbor wool coat — Legacy', ['Clothing', 'North Studio', 'Winter 2025'], 'Clothing', '2026-08-17', { creatorId: '8f04…c218', description: 'Wool outerwear with a fitted waist.', tags: ['outerwear', 'legacy'] }),
+  item('sm-002', 'Harbor wool coat — Maitreya', ['Clothing', 'North Studio', 'Winter 2025'], 'Clothing', '2026-08-17', { creatorId: '8f04…c218', description: 'Wool outerwear, Maitreya fit.', tags: ['outerwear'] }),
+  item('sm-003', 'Harbor coat demo', ['Clothing', 'North Studio', 'Winter 2025', 'Demos'], 'Object', '2026-08-17', { creatorId: '8f04…c218' }),
+  item('sm-004', 'Rainlight boots — Legacy', ['Clothing', 'North Studio', 'Rainlight'], 'Clothing', '2026-08-29', { creatorId: '8f04…c218', tags: ['shoes', 'legacy'] }),
+  item('sm-005', 'Wear me: Raindrop boots demo', ['Clothing', 'North Studio', 'Rainlight', 'Demo'], 'Object', '2026-08-29', { creatorId: '8f04…c218' }),
+  item('sm-006', 'Studio North — care and fit', ['Clothing', 'North Studio', 'Winter 2025'], 'Notecard', '2026-08-17', { creatorId: '8f04…c218' }),
+  item('sm-007', 'North Studio Main Store', ['Places', 'Shopping landmarks'], 'Landmark', '2024-10-11', { creatorId: '8f04…c218' }),
+  item('sm-008', 'Unpack — harbor coat', ['Shopping', 'Deliveries', 'North Studio'], 'Object', '2026-08-17', { creatorId: '8f04…c218' }),
+  item('sm-009', 'Winter cloth archive', ['Collections', 'Textures', 'Loom House'], 'Object', '2025-12-02', { creatorId: '19ae…b072', tags: ['textures', 'winter'] }),
+  item('sm-010', 'Tideglass dress — Legacy', ['Clothing', 'Mariner Atelier', 'Tideglass'], 'Clothing', '2026-09-21', { creatorId: '7201…8a30', tags: ['dress', 'legacy'] }),
+  item('sm-011', 'Tideglass dress — Belleza', ['Clothing', 'Mariner Atelier', 'Tideglass'], 'Clothing', '2026-09-21', { creatorId: '7201…8a30' }),
+  item('sm-012', 'Tideglass lookbook', ['Clothing', 'Mariner Atelier', 'Tideglass'], 'Notecard', '2026-09-21', { creatorId: '7201…8a30' }),
+  item('sm-013', 'Pearl clasp necklace', ['Accessories', 'Mariner Atelier', 'Tideglass'], 'Clothing', '2026-09-21', { creatorId: '7201…8a30', possibleDuplicate: true, tags: ['jewelry'] }),
+  item('sm-014', 'Studio gift box', ['Shopping', 'Mariner Atelier', 'Gifts'], 'Object', '2026-09-23', { creatorId: '7201…8a30' }),
+  item('sm-015', 'Waterline market', ['Places', 'Events', 'Autumn 2026'], 'Landmark', '2026-09-20', { creatorId: 'e931…91ba' }),
+  item('sm-016', 'Tailoring appointment card', ['Notecards', 'Mariner Atelier'], 'Notecard', '2026-09-23', { creatorId: '7201…8a30', tags: ['appointment'] }),
+  item('sm-017', 'Woven room divider', ['Home', 'Woven Rooms', 'Living'], 'Object', '2024-02-13', { creatorId: 'c721…e9a2', tags: ['home'] }),
+  item('sm-018', 'Woven Rooms — setup guide', ['Home', 'Woven Rooms'], 'Notecard', '2024-02-13', { creatorId: 'c721…e9a2' }),
+  item('sm-019', 'Canvas tote — unpacker', ['Shopping', 'Loom House', 'Canvas Set'], 'Object', '2026-09-27', { creatorId: '19ae…b072' }),
+  item('sm-020', 'Canvas tote — worn', ['Accessories', 'Loom House', 'Canvas Set'], 'Clothing', '2026-09-27', { creatorId: '19ae…b072', tags: ['bag'] }),
+  item('sm-021', 'Autumn palette notes', ['Collections', 'Loom House', 'Canvas Set'], 'Notecard', '2026-09-27', { creatorId: '19ae…b072' }),
+  item('sm-022', 'Saltmere pier', ['Places', 'Saved visits'], 'Landmark', '2023-07-14', { creatorId: 'e931…91ba' }),
+  item('sm-023', 'Wardrobe folder', ['Clothing', 'Closet'], 'Folder', '2020-01-01', { tags: ['wardrobe'] }),
+  item('sm-024', 'Old sizes', ['Clothing', 'Archive', 'Mariner Atelier'], 'Folder', '2022-03-06'),
+  item('sm-025', 'Hair — Sable bob', ['Hair', 'Everyday'], 'Clothing', '2026-09-12', { creatorId: 'a170…db2f', tags: ['hair'] }),
+  item('sm-026', 'Sable bob style card', ['Hair', 'Everyday'], 'Notecard', '2026-09-12', { creatorId: 'a170…db2f' }),
+  item('sm-027', 'Dockside boots — demo', ['Footwear', 'Old demos', 'Loom House'], 'Object', '2021-04-16', { creatorId: '19ae…b072' }),
+  item('sm-028', 'Dockside boots — Legacy', ['Footwear', 'Loom House', 'Archive'], 'Clothing', '2021-04-16', { creatorId: '19ae…b072', tags: ['shoes'] }),
+  item('sm-029', 'Parcel script', ['Shopping', 'Deliveries', 'Loom House'], 'Other', '2021-04-16', { creatorId: '19ae…b072' }),
+  item('sm-030', 'Autumn 2026 receipt', ['Shopping', 'Receipts', 'Loom House'], 'Notecard', '2026-09-27', { creatorId: '19ae…b072' }),
+  item('sm-031', 'Cinderlight jacket — Legacy', ['Clothing', 'Mariner Atelier', 'Cinderlight'], 'Clothing', '2026-05-08', { creatorId: '7201…8a30', tags: ['jacket', 'legacy'] }),
+  item('sm-032', 'Cinderlight — unpacking box', ['Clothing', 'Mariner Atelier', 'Cinderlight', 'Delivery'], 'Object', '2026-05-08', { creatorId: '7201…8a30' }),
+  item('sm-033', 'Pearl clasp necklace', ['Accessories', 'Loom House', 'Archive'], 'Clothing', '2024-06-12', { creatorId: '19ae…b072', possibleDuplicate: true, tags: ['jewelry', 'archive'] }),
+];

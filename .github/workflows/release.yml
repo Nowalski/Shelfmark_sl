@@ -1,0 +1,99 @@
+name: Publish signed desktop release
+
+on:
+  push:
+    tags:
+      - 'app-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rust-target: ''
+            tauri-args: ''
+          - os: macos-latest
+            rust-target: aarch64-apple-darwin
+            tauri-args: --target aarch64-apple-darwin
+          - os: macos-latest
+            rust-target: x86_64-apple-darwin
+            tauri-args: --target x86_64-apple-darwin
+          - os: ubuntu-22.04
+            rust-target: ''
+            tauri-args: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Require the updater signing key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY is required to create signed updater artifacts."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust-target }}
+
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential curl file libayatana-appindicator3-dev librsvg2-dev \
+            libssl-dev libwebkit2gtk-4.1-dev libxdo-dev patchelf wget
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify release tag matches app version
+        shell: bash
+        run: |
+          node -e 'const fs=require("fs"); const app=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); if (app.version !== tauri.version || process.env.GITHUB_REF_NAME !== `app-v${app.version}`) { console.error("Release tag and package/Tauri versions must match."); process.exit(1); }'
+
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Shelfmark ${{ github.ref_name }}
+          releaseBody: |
+            Shelfmark desktop installers and signed updater metadata.
+
+            - Windows: local catalogue and live Trash actions through stock Firestorm.
+            - macOS and Linux: local catalogue; live Firestorm actions are not currently available.
+
+            Shelfmark is source-available under personal-use terms. See the repository LICENSE.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.tauri-args }}

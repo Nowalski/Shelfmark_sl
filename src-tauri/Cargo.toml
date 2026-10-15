@@ -1,0 +1,32 @@
+[package]
+name = "shelfmark"
+version = "0.1.1"
+description = "A local catalogue for Second Life inventory"
+authors = ["Shelfmark"]
+edition = "2021"
+
+[lib]
+name = "shelfmark_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+flate2 = "1"
+hayro-jpeg2000 = { version = "0.4", default-features = false }
+llsd-rs = "0.1.7"
+png = "0.17"
+quick-xml = "0.42"
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
+tauri-plugin-updater = "2"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
