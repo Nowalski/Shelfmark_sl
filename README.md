@@ -28,6 +28,12 @@
 
 Shelfmark reads a Firestorm inventory snapshot and builds a searchable catalogue on your computer. On Windows, you can also connect the matching stock Firestorm session and move a selected item to Trash without leaving Shelfmark.
 
+<p align="center">
+  <img src="site/assets/shelfmark-desktop.png" alt="Shelfmark catalogue with fictional sample inventory" width="960">
+  <br>
+  <em>Sample catalogue shown. The preview uses fictional data.</em>
+</p>
+
 ## Download and start
 
 Download the installer for your platform from [GitHub Releases](https://github.com/Nowalski/Shelfmark_sl/releases/latest). Open Shelfmark, choose **Import Firestorm cache**, select the avatar snapshot you want, and confirm. Shelfmark checks common cache locations; choose **Browse** if yours is elsewhere.

@@ -52,6 +52,10 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
 .intro h2, .getting-started h2, .privacy h2, .closing h2 { margin: 0; font-size: clamp(34px, 4.2vw, 52px); letter-spacing: -1.8px; line-height: 1.08; }
 .intro h2 em { color: var(--sage); font-weight: 400; }
 .intro-copy { max-width: 340px; margin-bottom: 3px; color: var(--ink-soft); font-size: 13px; line-height: 1.8; }
+.catalogue-preview { margin-bottom: 78px; }
+.catalogue-preview figure { margin: 0; }
+.catalogue-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--line); box-shadow: 0 22px 54px rgba(40,52,44,.12); }
+.catalogue-preview figcaption { margin-top: 12px; color: var(--ink-soft); font: 10px "Cascadia Code", Consolas, monospace; letter-spacing: .25px; text-align: right; }
 .features { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .feature { min-height: 212px; padding: 27px 32px 30px 0; }
 .feature + .feature { padding-left: 32px; border-left: 1px solid var(--line); }
@@ -106,6 +110,8 @@ h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
   .intro .eyebrow { margin: 0; }
   .intro h2 { font-size: 43px; }
   .intro-copy { max-width: 520px; margin-top: 1px; }
+  .catalogue-preview { margin-bottom: 58px; }
+  .catalogue-preview figcaption { text-align: left; line-height: 1.6; }
   .features { grid-template-columns: 1fr; }
   .feature { min-height: 0; padding: 24px 0 27px; }
   .feature + .feature { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
