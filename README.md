@@ -2,20 +2,20 @@
 
 <p align="center">
   <a href="https://nowalski.github.io/Shelfmark_sl/">
-    <img src="site/assets/shelfmark-archive.png" alt="Shelfmark — a local catalogue for Second Life inventory" width="760">
+    <img src="site/assets/shelfmark-desktop.png" alt="Shelfmark desktop app displaying fictional sample inventory" width="960">
   </a>
 </p>
 
 <p align="center">
-  <strong>A local catalogue for your Second Life inventory.</strong><br>
-  Find what you need, keep your own notes, and send selected items to Firestorm’s Trash from Shelfmark.
+  <strong>A desktop app for your Second Life inventory.</strong><br>
+  Search your Firestorm snapshot, keep notes and tags, and send selected items to Trash on Windows.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Nowalski/Shelfmark_sl?display_name=release&amp;label=latest%20release&amp;color=1f6ff2&amp;cacheSeconds=60"></a>
-  <a href="https://github.com/Nowalski/Shelfmark_sl/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Nowalski/Shelfmark_sl/total?label=downloads&amp;color=1f6ff2&amp;cacheSeconds=60"></a>
+  <a href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Nowalski/Shelfmark_sl?display_name=release&amp;label=latest%20release&amp;color=436b51&amp;cacheSeconds=60"></a>
+  <a href="https://github.com/Nowalski/Shelfmark_sl/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Nowalski/Shelfmark_sl/total?label=downloads&amp;color=436b51&amp;cacheSeconds=60"></a>
   <a href="https://github.com/Nowalski/Shelfmark_sl/actions/workflows/build.yml"><img alt="Build status" src="https://github.com/Nowalski/Shelfmark_sl/actions/workflows/build.yml/badge.svg?branch=main"></a>
-  <a href="LICENSE"><img alt="Personal-use terms" src="https://img.shields.io/badge/terms-personal%20use-1f6ff2"></a>
+  <a href="LICENSE"><img alt="Personal-use terms" src="https://img.shields.io/badge/terms-personal%20use-436b51"></a>
 </p>
 
 <p align="center">
@@ -27,12 +27,6 @@
 </p>
 
 Shelfmark reads a Firestorm inventory snapshot and builds a searchable catalogue on your computer. On Windows, you can also connect the matching stock Firestorm session and move a selected item to Trash without leaving Shelfmark.
-
-<p align="center">
-  <img src="site/assets/shelfmark-desktop.png" alt="Shelfmark catalogue with fictional sample inventory" width="960">
-  <br>
-  <em>Sample catalogue shown. The preview uses fictional data.</em>
-</p>
 
 ## Download and start
 

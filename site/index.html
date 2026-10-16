@@ -3,23 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#25342b">
-  <meta name="description" content="Shelfmark turns a Firestorm inventory cache into a private, searchable catalogue for Second Life.">
+  <meta name="theme-color" content="#f7f9f6">
+  <meta name="description" content="Shelfmark is a desktop app for Second Life inventory. Search your Firestorm snapshot, organise your catalogue, and move selected items to Trash on Windows.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Shelfmark — your inventory, easier to find">
-  <meta property="og:description" content="A local desktop catalogue for your Firestorm inventory.">
-  <meta property="og:image" content="https://nowalski.github.io/Shelfmark_sl/assets/shelfmark-archive.png">
-  <title>Shelfmark — your inventory, easier to find</title>
+  <meta property="og:title" content="Shelfmark — a desktop app for Second Life inventory">
+  <meta property="og:description" content="Search your Firestorm inventory, keep notes and tags, and move selected items to Trash on Windows. Your catalogue stays on your computer.">
+  <meta property="og:image" content="https://nowalski.github.io/Shelfmark_sl/assets/shelfmark-desktop.png">
+  <meta property="og:image:alt" content="The Shelfmark catalogue, shown with fictional sample inventory.">
+  <title>Shelfmark — a desktop app for Second Life inventory</title>
   <link rel="icon" href="assets/shelfmark-mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header" id="top">
-    <a class="brand" href="#top" aria-label="Shelfmark home">
-      <img src="assets/shelfmark-mark.svg" alt="" width="34" height="34">
-      <span>Shelfmark</span>
-    </a>
+  <header class="site-header section-wrap" id="top">
+    <a class="brand" href="#top" aria-label="Shelfmark home"><img src="assets/shelfmark-mark.svg" alt="" width="36" height="36"><span>Shelfmark</span></a>
     <nav aria-label="Main navigation">
       <a href="#features">Features</a>
       <a href="#getting-started">Getting started</a>
@@ -27,102 +25,93 @@
       <a class="nav-github" href="https://github.com/Nowalski/Shelfmark_sl">GitHub <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
-
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-shade"></div>
-      <div class="hero-copy" data-reveal>
-        <p class="eyebrow">A local catalogue for Firestorm</p>
-        <h1 id="hero-title">The things you own, easier to find.</h1>
-        <p class="hero-description">Shelfmark turns a Firestorm inventory cache into a private, searchable catalogue. Find what you need, then send a selected item to Trash from Shelfmark on Windows.</p>
+      <div class="hero-copy">
+        <p class="eyebrow">Desktop app for Second Life &amp; Firestorm</p>
+        <h1 id="hero-title">Shelfmark</h1>
+        <p class="hero-tagline">Find and organise your<br class="desktop-break"> Second Life inventory.</p>
+        <p class="hero-description">Search your Firestorm snapshot, keep notes and tags, and send selected items to Trash on Windows.</p>
         <div class="hero-actions">
-          <a class="button button-light" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest">Get Shelfmark <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md">Read the user guide <span aria-hidden="true">→</span></a>
+          <a class="button button-primary" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg><span>Download Shelfmark</span></a>
+          <a class="button button-secondary" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md">Read the user guide <span aria-hidden="true">→</span></a>
         </div>
-        <p class="hero-note">No account or activation. Your catalogue stays on your device.</p>
+        <p class="hero-note">Windows · macOS · Linux <span aria-hidden="true">/</span> No account or activation</p>
       </div>
-      <p class="image-caption">A personal archive, made searchable</p>
-    </section>
-
-    <section class="intro section-wrap" id="about" data-reveal>
-      <p class="eyebrow">Made for inventories that keep growing</p>
-      <h2>Keep the whole picture.<br><em>Find the one thing.</em></h2>
-      <p class="intro-copy">Firestorm already knows where everything is. Shelfmark helps you find what to keep, remember why it matters, and clear out items you no longer want.</p>
-    </section>
-
-    <section class="catalogue-preview section-wrap" aria-label="A sample Shelfmark catalogue" data-reveal>
-      <figure>
-        <img src="assets/shelfmark-desktop.png" alt="Shelfmark showing sample inventory search results and item details. The sample data is fictional." width="1440" height="900">
-        <figcaption>Sample catalogue shown · Fictional data, not a real inventory</figcaption>
+      <figure class="app-preview section-wrap">
+        <a href="assets/shelfmark-desktop.png" aria-label="View the full Shelfmark screenshot"><img src="assets/shelfmark-desktop.png" alt="Shelfmark displaying a searchable inventory catalogue, folder navigation, and item details. The sample data is fictional." width="1440" height="900" fetchpriority="high"></a>
+        <figcaption><span>Actual app interface · Fictional sample data</span><span>Live Firestorm Trash actions are available on Windows.</span></figcaption>
       </figure>
     </section>
-
-    <section class="features section-wrap" id="features" aria-label="Shelfmark features">
-      <article class="feature" data-reveal>
-        <span class="feature-number">01</span>
-        <h3>Send items to Trash</h3>
-        <p>On Windows, send a selected item to Firestorm’s Trash. Shelfmark checks the move before the catalogue updates.</p>
-      </article>
-      <article class="feature" data-reveal>
-        <span class="feature-number">02</span>
-        <h3>Search by more than name</h3>
-        <p>Search item names, descriptions, folder paths, and the tags you have added.</p>
-      </article>
-      <article class="feature" data-reveal>
-        <span class="feature-number">03</span>
-        <h3>Organise your own way</h3>
-        <p>Add personal notes, save useful searches, group favourites into collections, and keep reference photos nearby.</p>
-      </article>
+    <section class="features section-wrap" id="features" aria-labelledby="features-title">
+      <div class="section-heading" data-reveal>
+        <p class="eyebrow">What you can do</p>
+        <h2 id="features-title">Search, organise, and clear out.</h2>
+        <p>Work from a local catalogue of your Firestorm inventory, with the details you need to review each item.</p>
+      </div>
+      <div class="feature-list">
+        <article class="feature" data-reveal>
+          <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>
+          <h3>Move items to Trash</h3>
+          <p>On Windows, send one selected item to Firestorm’s Trash. Shelfmark confirms the move before updating the catalogue.</p>
+        </article>
+        <article class="feature" data-reveal>
+          <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg>
+          <h3>Search your inventory</h3>
+          <p>Search item names, descriptions, folder paths, and your tags. Browse folders or review groups of possible duplicates and packages.</p>
+        </article>
+        <article class="feature" data-reveal>
+          <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13 11 22 2 13V3h10l8 8a1.4 1.4 0 0 1 0 2Z"/><circle cx="7" cy="8" r="1"/></svg>
+          <h3>Keep your own context</h3>
+          <p>Add private notes, tags, and reference photos. Save useful searches and group favourite items into collections.</p>
+        </article>
+      </div>
+      <p class="feature-note">Candidate groups are clues to review. Importing and browsing a snapshot are read-only.</p>
     </section>
-
-    <section class="getting-started" id="getting-started">
+    <section class="getting-started" id="getting-started" aria-labelledby="getting-title">
       <div class="section-wrap getting-grid">
         <div class="getting-heading" data-reveal>
           <p class="eyebrow">Getting started</p>
-          <h2>From cache to catalogue.</h2>
-          <p>Choose the snapshot you want to browse. Shelfmark does the indexing on your computer.</p>
-          <a class="text-link dark-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md">The full walkthrough <span aria-hidden="true">→</span></a>
+          <h2 id="getting-title">Start with your Firestorm cache.</h2>
+          <p>Install Shelfmark, choose an avatar snapshot, and build your catalogue on your computer.</p>
+          <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md">Follow the full walkthrough <span aria-hidden="true">→</span></a>
         </div>
         <ol class="steps">
-          <li data-reveal><span>01</span><div><h3>Choose a cache</h3><p>Import a Firestorm inventory snapshot and confirm the file before it is read.</p></div></li>
-          <li data-reveal><span>02</span><div><h3>Find it or send it to Trash</h3><p>On Windows, connect the matching Firestorm session on the Second Life main grid, then move one selected item to Trash from Shelfmark.</p></div></li>
-          <li data-reveal><span>03</span><div><h3>Add your own context</h3><p>Keep tags, notes, saved searches, and collections in your local profile.</p></div></li>
+          <li data-reveal><span class="step-number">01</span><div><h3>Import your snapshot</h3><p>Choose <strong>Import Firestorm cache</strong> and confirm the matching avatar. Close Firestorm first for the freshest saved cache.</p></div></li>
+          <li data-reveal><span class="step-number">02</span><div><h3>Search and organise</h3><p>Find an item by name or folder, add your own notes and tags, and save it to a collection.</p></div></li>
+          <li data-reveal><span class="step-number">03</span><div><h3>Connect Firestorm for Trash</h3><p>On Windows, connect the matching stock Firestorm session on the Second Life main grid, review a selected item, and move it to Trash.</p></div></li>
         </ol>
       </div>
     </section>
-
-    <section class="privacy section-wrap" id="privacy" data-reveal>
-      <div class="privacy-mark" aria-hidden="true">S</div>
-      <div>
-        <p class="eyebrow">Private by default</p>
-        <h2>Your inventory stays yours.</h2>
-        <p>Shelfmark reads only the cache you select. Inventory data, personal notes, and reference photos stay on your device; they are not uploaded to a Shelfmark service. On Windows, Trash actions run through stock Firestorm on your computer. The desktop app contacts GitHub Releases to check for signed updates. Shelfmark does not ask for your Second Life password.</p>
+    <section class="privacy section-wrap" id="privacy" aria-labelledby="privacy-title" data-reveal>
+      <div><p class="eyebrow">Kept on your device</p><h2 id="privacy-title">Your catalogue stays on your computer.</h2></div>
+      <div class="privacy-copy">
+        <p>Your inventory, notes, tags, and photos are not uploaded to a Shelfmark service. Shelfmark reads the cache you select and never asks for your Second Life password.</p>
+        <p>Windows Trash actions run through stock Firestorm on your computer. The desktop app contacts GitHub Releases to check for signed updates.</p>
+        <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md#updates-and-local-data">Privacy and local data <span aria-hidden="true">→</span></a>
       </div>
-      <a class="text-link dark-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md#updates-and-local-data">Privacy details <span aria-hidden="true">→</span></a>
     </section>
-
-    <section class="closing">
+    <section class="closing" aria-labelledby="download-title">
       <div class="section-wrap closing-inner" data-reveal>
-        <p class="eyebrow">Source available · personal use</p>
-        <h2>Take a look around.</h2>
-        <p>Download a release, read the guide, or browse the source and see how Shelfmark works. The project uses personal-use terms; it is not an OSI-approved open-source project.</p>
+        <p class="eyebrow">Get Shelfmark</p>
+        <h2 id="download-title">Make room in your inventory.</h2>
+        <p>Download a desktop installer for Windows, macOS, or Linux.<br> Live Firestorm Trash actions are currently available on Windows.</p>
         <div class="hero-actions">
-          <a class="button button-dark" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest">View latest release <span aria-hidden="true">↗</span></a>
-          <a class="text-link dark-link" href="https://github.com/Nowalski/Shelfmark_sl">Browse the repository <span aria-hidden="true">→</span></a>
+          <a class="button button-primary" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg><span>Download Shelfmark</span></a>
+          <a class="button button-secondary" href="https://github.com/Nowalski/Shelfmark_sl">View on GitHub <span aria-hidden="true">↗</span></a>
         </div>
+        <p class="terms-note">Source available under <a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">personal-use terms</a>.</p>
       </div>
     </section>
   </main>
-
   <footer class="site-footer section-wrap">
-    <a class="brand footer-brand" href="#top"><img src="assets/shelfmark-mark.svg" alt="" width="28" height="28"><span>Shelfmark</span></a>
-    <p>Independent software for your Second Life inventory. Not affiliated with Linden Lab or the Firestorm team.</p>
+    <a class="brand" href="#top"><img src="assets/shelfmark-mark.svg" alt="" width="30" height="30"><span>Shelfmark</span></a>
+    <p>Independent software for Second Life inventory.<br> Not affiliated with Linden Lab or the Firestorm team.</p>
     <a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">Personal-use terms</a>
   </footer>
   <script>
-    document.documentElement.classList.add('has-js');
     const revealItems = document.querySelectorAll('[data-reveal]');
-    if ('IntersectionObserver' in window) {
+    if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const observer = new IntersectionObserver((entries, currentObserver) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
@@ -130,10 +119,9 @@
             currentObserver.unobserve(entry.target);
           }
         }
-      }, { threshold: 0.12 });
+      }, { threshold: 0.08 });
       revealItems.forEach((item) => observer.observe(item));
-    } else {
-      revealItems.forEach((item) => item.classList.add('is-visible'));
+      document.documentElement.classList.add('has-js');
     }
   </script>
 </body>
