@@ -117,9 +117,17 @@ jobs:
           $assets = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
           New-Item -ItemType Directory -Path $assets -Force | Out-Null
 
-          $setupFiles = @(Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'firestorm/build-*/newview/Release') -Filter '*Setup.exe' -File -ErrorAction SilentlyContinue)
+          $buildDirs = @(Get-ChildItem -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'firestorm') -Directory -Filter 'build-*')
+          $viewerDirs = @($buildDirs | ForEach-Object { Join-Path $_.FullName 'newview' } | Where-Object { Test-Path -LiteralPath $_ })
+          $setupFiles = @($viewerDirs | ForEach-Object {
+            Get-ChildItem -LiteralPath $_ -Filter '*Setup.exe' -File -Recurse -ErrorAction SilentlyContinue
+          })
           if ($setupFiles.Count -ne 1) {
-            Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'firestorm') -Directory -Filter 'build-*' | ForEach-Object { Write-Host $_.FullName }
+            foreach ($viewerDir in $viewerDirs) {
+              Get-ChildItem -LiteralPath $viewerDir -Filter '*.exe' -File -Recurse -ErrorAction SilentlyContinue |
+                Select-Object -First 50 -ExpandProperty FullName |
+                ForEach-Object { Write-Host $_ }
+            }
             throw "Expected one Firestorm installer, found $($setupFiles.Count)."
           }
 
