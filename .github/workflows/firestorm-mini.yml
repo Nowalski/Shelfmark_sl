@@ -70,6 +70,9 @@ jobs:
         working-directory: firestorm
         run: |
           patch="$GITHUB_WORKSPACE/integrations/firestorm-mini/patches/firestorm-7.2.5-shelfmark-native-trash.patch"
+          normalized_patch="$(mktemp)"
+          trap 'rm -f "$normalized_patch"' EXIT
+          tr -d '\r' < "$patch" > "$normalized_patch"
           git config core.autocrlf false
           git checkout-index --force -- \
             indra/newview/llappviewer.h \
@@ -86,8 +89,8 @@ jobs:
               exit 1
             fi
           done
-          git apply --check "$patch"
-          git apply "$patch"
+          git apply --check "$normalized_patch"
+          git apply "$normalized_patch"
           git diff --check
 
       - name: Cache Firestorm dependencies
