@@ -31,6 +31,7 @@ macro_rules! leap_log {
 pub struct LeapStatus {
     pub phase: String,
     pub connected: bool,
+    pub native_bridge_enabled: bool,
     pub avatar_id: Option<String>,
     pub api_names: Vec<String>,
     pub inventory_window_paths: Vec<String>,
@@ -43,6 +44,7 @@ impl Default for LeapStatus {
         Self {
             phase: "idle".into(),
             connected: false,
+            native_bridge_enabled: false,
             avatar_id: None,
             api_names: Vec::new(),
             inventory_window_paths: Vec::new(),
@@ -89,6 +91,8 @@ pub struct LeapController {
 #[derive(Default)]
 struct LeapShared {
     status: LeapStatus,
+    firestorm_executable: Option<PathBuf>,
+    native_bridge_enabled: bool,
     token: Option<String>,
     outgoing: Option<Sender<JsonValue>>,
     pending: HashMap<String, Sender<Result<JsonValue, String>>>,
@@ -106,9 +110,16 @@ impl LeapController {
             })
     }
 
-    pub fn start_stock_firestorm(&self, executable_path: &str) -> Result<LeapStatus, String> {
+    pub fn start_stock_firestorm(
+        &self,
+        executable_path: &str,
+        native_bridge_enabled: bool,
+    ) -> Result<LeapStatus, String> {
+        if native_bridge_enabled && !cfg!(windows) {
+            return Err("The Firestorm Mini bridge is available on Windows only.".into());
+        }
         if crate::discovery::firestorm_is_running() == Some(true) {
-            return Err("Close every Firestorm window first. Stock Firestorm reads --leap only at startup; Shelfmark will not close the viewer for you.".into());
+            return Err("Close every Firestorm window first. Firestorm reads --leap only at startup; Shelfmark will not close the viewer for you.".into());
         }
 
         let executable = Path::new(executable_path)
@@ -124,7 +135,11 @@ impl LeapController {
                 .and_then(std::ffi::OsStr::to_str)
                 .is_some_and(|name| name.to_ascii_lowercase().starts_with("firestorm"))
         {
-            return Err("Choose the stock Firestorm .exe file.".into());
+            return Err(if native_bridge_enabled {
+                "Choose the patched Firestorm Mini .exe file.".into()
+            } else {
+                "Choose the stock Firestorm .exe file.".into()
+            });
         }
 
         let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|error| {
@@ -147,9 +162,16 @@ impl LeapController {
             }
             shared.status = LeapStatus {
                 phase: "starting".into(),
-                message: "Starting stock Firestorm with the Shelfmark LEAP helper…".into(),
+                native_bridge_enabled,
+                message: if native_bridge_enabled {
+                    "Starting the patched Firestorm Mini build with Shelfmark's LEAP helper…".into()
+                } else {
+                    "Starting stock Firestorm with the Shelfmark LEAP helper…".into()
+                },
                 ..LeapStatus::default()
             };
+            shared.firestorm_executable = Some(executable.clone());
+            shared.native_bridge_enabled = native_bridge_enabled;
             shared.token = Some(token.clone());
             shared.outgoing = None;
         }
@@ -178,8 +200,13 @@ impl LeapController {
             .arg("false")
             .spawn()
         {
-            self.set_error(format!("Could not start stock Firestorm: {error}"));
-            return Err(format!("Could not start stock Firestorm: {error}"));
+            let viewer_name = if native_bridge_enabled {
+                "Firestorm Mini"
+            } else {
+                "stock Firestorm"
+            };
+            self.set_error(format!("Could not start {viewer_name}: {error}"));
+            return Err(format!("Could not start {viewer_name}: {error}"));
         }
 
         let shared = self.shared.clone();
@@ -202,8 +229,11 @@ impl LeapController {
             shared.status.api_names = api_names.clone();
             shared.status.inventory_window_paths = inventory_window_paths.clone();
             shared.status.inventory_paths_scanned = false;
-            shared.status.message =
-                "Connected to stock Firestorm. LEAP APIs and active avatar were read.".into();
+            shared.status.message = if shared.native_bridge_enabled {
+                "Connected to patched Firestorm Mini. LEAP reads and native Trash actions are ready.".into()
+            } else {
+                "Connected to stock Firestorm. LEAP APIs and active avatar were read.".into()
+            };
         }
         Ok(LeapInspection {
             avatar_id,
@@ -338,10 +368,32 @@ impl LeapController {
         &self,
         avatar_id: &str,
         item_id: &str,
+        source_parent_id: &str,
         destination_folder_id: Option<&str>,
     ) -> Result<LeapMoveResult, String> {
-        log_move_diagnostic("move.started");
-        let result = self.move_inventory_item_inner(avatar_id, item_id, destination_folder_id);
+        let native_bridge_enabled = self
+            .shared
+            .lock()
+            .map(|shared| shared.native_bridge_enabled)
+            .unwrap_or(false);
+        if native_bridge_enabled && destination_folder_id.is_some() {
+            return Err("Firestorm Mini currently supports moves to Trash only.".into());
+        }
+        log_move_diagnostic(if native_bridge_enabled {
+            "move.native_bridge_started"
+        } else {
+            "move.started"
+        });
+        let result = if native_bridge_enabled {
+            self.move_inventory_item_native(avatar_id, item_id, source_parent_id)
+        } else {
+            self.move_inventory_item_inner(
+                avatar_id,
+                item_id,
+                source_parent_id,
+                destination_folder_id,
+            )
+        };
         match &result {
             Ok(move_result) if move_result.changed => {
                 log_move_diagnostic("move.verified_parent_changed");
@@ -352,10 +404,135 @@ impl LeapController {
         result
     }
 
+    fn move_inventory_item_native(
+        &self,
+        avatar_id: &str,
+        item_id: &str,
+        source_parent_id: &str,
+    ) -> Result<LeapMoveResult, String> {
+        if !cfg!(windows) {
+            return Err("The Firestorm Mini bridge is available on Windows only.".into());
+        }
+        let _move = self
+            .move_lock
+            .lock()
+            .map_err(|_| "The Firestorm Mini move is unavailable.".to_string())?;
+        let (expected_avatar_id, _) = crate::normalized_inventory_move_avatar(avatar_id)?;
+        let item_id = normalize_uuid(item_id, "item")?;
+        let source_parent_id = normalize_uuid(source_parent_id, "source folder")?;
+        let active_avatar_id = self.active_avatar_id()?;
+        if !active_avatar_id.eq_ignore_ascii_case(&expected_avatar_id) {
+            return Err(format!(
+                "Firestorm is logged in as {active_avatar_id}, but this snapshot belongs to {expected_avatar_id}."
+            ));
+        }
+
+        let before = self.read_inventory_item(&item_id)?;
+        if !before.parent_id.eq_ignore_ascii_case(&source_parent_id) {
+            return Err(
+                "The item moved since this snapshot was imported. Refresh it and try again.".into(),
+            );
+        }
+        let previous_parent = self.read_inventory_category(&before.parent_id)?;
+        let previous_parent_name = previous_parent
+            .get("name")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("Source folder")
+            .to_owned();
+
+        let trash_response = self.request(
+            "LLInventory",
+            json!({ "op": "getBasicFolderID", "ft_name": "trash" }),
+        )?;
+        let destination_id = trash_response
+            .get("id")
+            .and_then(JsonValue::as_str)
+            .ok_or_else(|| "Firestorm did not return its Trash folder UUID.".to_string())?;
+        let destination_id = normalize_uuid(destination_id, "Trash folder")?;
+        let destination = self.read_inventory_category(&destination_id)?;
+        if destination.get("type").and_then(JsonValue::as_str) != Some("trash") {
+            return Err("Firestorm did not identify that folder as Trash.".into());
+        }
+        let destination_name = destination
+            .get("name")
+            .and_then(JsonValue::as_str)
+            .unwrap_or("Trash")
+            .to_owned();
+        if before.parent_id.eq_ignore_ascii_case(&destination_id) {
+            return Ok(LeapMoveResult {
+                item: before.clone(),
+                previous_parent_id: before.parent_id,
+                previous_parent_name,
+                destination_name,
+                changed: false,
+            });
+        }
+
+        let (executable, native_bridge_enabled) = self
+            .shared
+            .lock()
+            .map(|shared| {
+                (
+                    shared.firestorm_executable.clone(),
+                    shared.native_bridge_enabled,
+                )
+            })
+            .map_err(|_| "The Firestorm Mini connection state is unavailable.".to_string())?;
+        if !native_bridge_enabled {
+            return Err("Launch the patched Firestorm Mini build from Shelfmark first.".into());
+        }
+        let executable = executable.ok_or_else(|| {
+            "Shelfmark has no Firestorm Mini executable for this session.".to_string()
+        })?;
+
+        let request_id = uuid::Uuid::new_v4().hyphenated().to_string();
+        let uri = format!(
+            "secondlife:///app/shelfmark/v1/move/{expected_avatar_id}/{item_id}/{source_parent_id}/trash?grid=agni&request={request_id}"
+        );
+        Command::new(&executable)
+            .current_dir(executable.parent().unwrap_or_else(|| Path::new(".")))
+            .arg("--url")
+            .arg(uri)
+            .spawn()
+            .map_err(|error| {
+                format!("Could not send the move request to Firestorm Mini: {error}")
+            })?;
+
+        // The viewer asks for confirmation. Keep checking its live inventory
+        // until the user responds or the request times out.
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(450));
+            let current = self.read_inventory_item(&item_id)?;
+            if current.parent_id.eq_ignore_ascii_case(&destination_id) {
+                // Read once more after the viewer has had time to process the
+                // inventory update, so an immediate optimistic change is not
+                // presented as a completed operation.
+                thread::sleep(Duration::from_millis(900));
+                let settled = self.read_inventory_item(&item_id)?;
+                if !settled.parent_id.eq_ignore_ascii_case(&destination_id) {
+                    return Err("Firestorm did not keep the item in Trash. Check its current location in the viewer.".into());
+                }
+                return Ok(LeapMoveResult {
+                    item: settled,
+                    previous_parent_id: before.parent_id,
+                    previous_parent_name,
+                    destination_name,
+                    changed: true,
+                });
+            }
+            if !current.parent_id.eq_ignore_ascii_case(&source_parent_id) {
+                return Err("The item changed folders while Shelfmark was waiting. Check it in Firestorm before trying again.".into());
+            }
+        }
+        Err("Firestorm Mini did not confirm the Trash move. Accept the confirmation in Firestorm, then check the item there.".into())
+    }
+
     fn move_inventory_item_inner(
         &self,
         avatar_id: &str,
         item_id: &str,
+        source_parent_id: &str,
         destination_folder_id: Option<&str>,
     ) -> Result<LeapMoveResult, String> {
         if !cfg!(debug_assertions) {
@@ -367,6 +544,7 @@ impl LeapController {
             .map_err(|_| "The stock Firestorm move is unavailable.".to_string())?;
         let (expected_avatar_id, _) = crate::normalized_inventory_move_avatar(avatar_id)?;
         let item_id = normalize_uuid(item_id, "item")?;
+        let source_parent_id = normalize_uuid(source_parent_id, "source folder")?;
         let active_avatar = self.request("LLAgent", json!({ "op": "getID" }))?;
         let active_avatar_id = find_first_string(&active_avatar, &["id", "avatar_id"])
             .or_else(|| active_avatar.as_str().map(str::to_owned))
@@ -381,6 +559,11 @@ impl LeapController {
         log_move_diagnostic("move.live_item_info_request");
         let before = self.read_inventory_item(&item_id)?;
         log_move_diagnostic("move.live_item_info_loaded");
+        if !before.parent_id.eq_ignore_ascii_case(&source_parent_id) {
+            return Err(
+                "The item moved since this snapshot was imported. Refresh it and try again.".into(),
+            );
+        }
         let previous_parent = self.read_inventory_category(&before.parent_id)?;
         log_move_diagnostic("move.source_folder_info_loaded");
         let previous_parent_name = previous_parent
@@ -740,6 +923,8 @@ impl LeapController {
 
     fn set_error(&self, message: String) {
         if let Ok(mut shared) = self.shared.lock() {
+            shared.firestorm_executable = None;
+            shared.native_bridge_enabled = false;
             shared.status = LeapStatus {
                 phase: "error".into(),
                 message,
@@ -846,7 +1031,12 @@ fn accept_authenticated(
     if let Ok(mut state) = shared.lock() {
         state.status.phase = "connected".into();
         state.status.connected = true;
-        state.status.message = "Stock Firestorm connected. Querying its LEAP APIs is ready.".into();
+        state.status.native_bridge_enabled = state.native_bridge_enabled;
+        state.status.message = if state.native_bridge_enabled {
+            "Patched Firestorm Mini connected. Shelfmark can request confirmed Trash moves through the native bridge.".into()
+        } else {
+            "Stock Firestorm connected. Querying its LEAP APIs is ready.".into()
+        };
         state.outgoing = Some(outgoing_tx);
     }
     thread::spawn(move || {
@@ -910,8 +1100,11 @@ fn accept_authenticated(
     if let Ok(mut state) = shared.lock() {
         state.status.connected = false;
         state.status.phase = "disconnected".into();
-        state.status.message =
-            "Stock Firestorm disconnected from the Shelfmark LEAP helper.".into();
+        state.status.message = if state.native_bridge_enabled {
+            "Firestorm Mini disconnected from the Shelfmark LEAP helper.".into()
+        } else {
+            "Stock Firestorm disconnected from the Shelfmark LEAP helper.".into()
+        };
         state.outgoing = None;
         for (_, pending) in state.pending.drain() {
             let _ = pending.send(Err("Stock Firestorm disconnected.".into()));
@@ -928,6 +1121,7 @@ fn set_shared_error(shared: &Arc<Mutex<LeapShared>>, message: String) {
         }
         state.status = LeapStatus {
             phase: "error".into(),
+            native_bridge_enabled: state.native_bridge_enabled,
             message,
             ..LeapStatus::default()
         };

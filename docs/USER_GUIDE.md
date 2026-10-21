@@ -31,15 +31,16 @@ To move your personal setup to another device, use **Settings → Personal data 
 
 ## Move an item to Trash
 
-Live Firestorm controls are currently available on Windows only. They require stock Firestorm on the Second Life main grid.
+Live Firestorm control is Windows-only. The packaged app can connect to stock Firestorm and read the active avatar. To move items from a packaged release, install the optional [Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788). It uses a separate viewer channel so it can be installed alongside stock Firestorm. The open build has no FMOD sound or voice; stock LEAP move actions remain enabled only in development builds.
 
-1. Close every Firestorm window before launching it from Shelfmark. Stock Firestorm reads the LEAP startup option only when it starts.
-2. In Shelfmark, choose **Launch Firestorm** and select the matching avatar snapshot.
-3. In Firestorm, open the **All Items** inventory tab and clear its inventory search field.
-4. Select one item in Shelfmark and choose **Move to Trash**. Shelfmark asks Firestorm to use its normal Delete action for that item, then checks the item’s new location before updating the catalogue.
-5. When finished, close Firestorm and choose **Refresh snapshot** so the catalogue reflects the cache Firestorm saved.
+1. Install Firestorm Mini from the pre-release above, then close every Firestorm window.
+2. In Shelfmark Home, choose **Firestorm Mini** and select the installed `Firestorm.exe`.
+3. Sign in to the Second Life main grid, then select the matching avatar snapshot in Shelfmark.
+4. In Firestorm, open **All Items** and clear its inventory search field.
+5. Select one item in Shelfmark and choose **Move to Trash**. Firestorm displays a confirmation for that item; Shelfmark waits for the live folder to change before updating its catalogue.
+6. When finished, close Firestorm and choose **Refresh snapshot** so the catalogue reflects the cache Firestorm saved. If Mini uses a separate cache folder, choose **Browse** and import its saved snapshot.
 
-Use the Second Life main grid and make sure the connected Firestorm avatar matches the selected snapshot. Moves to ordinary folders are paused because stock LEAP cannot reliably confirm which item is on the inventory clipboard. Make those moves in Firestorm.
+The bridge checks the live avatar and the item’s current source folder against your snapshot. It moves one item at a time and uses Firestorm’s normal removable-item checks. It only targets Trash on the Second Life main grid. Moves to ordinary folders remain paused; do those in Firestorm. The viewer is experimental and does not include sound or voice.
 
 ## Browser preview
 

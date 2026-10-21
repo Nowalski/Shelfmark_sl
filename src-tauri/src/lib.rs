@@ -134,11 +134,14 @@ async fn open_inventory_entry_in_firestorm(
 async fn start_stock_firestorm_leap(
     controller: State<'_, leap::LeapController>,
     executable_path: String,
+    native_bridge_enabled: bool,
 ) -> Result<leap::LeapStatus, String> {
     let controller = controller.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || controller.start_stock_firestorm(&executable_path))
-        .await
-        .map_err(|error| format!("Could not start stock Firestorm: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        controller.start_stock_firestorm(&executable_path, native_bridge_enabled)
+    })
+    .await
+    .map_err(|error| format!("Could not start Firestorm: {error}"))?
 }
 
 #[tauri::command(async)]
@@ -195,12 +198,18 @@ async fn move_stock_firestorm_inventory_item(
     controller: State<'_, leap::LeapController>,
     avatar_id: String,
     item_id: String,
+    source_parent_id: String,
     destination_folder_id: Option<String>,
 ) -> Result<leap::LeapMoveResult, String> {
     normalized_inventory_move_avatar(&avatar_id)?;
     let controller = controller.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        controller.move_inventory_item(&avatar_id, &item_id, destination_folder_id.as_deref())
+        controller.move_inventory_item(
+            &avatar_id,
+            &item_id,
+            &source_parent_id,
+            destination_folder_id.as_deref(),
+        )
     })
     .await
     .map_err(|error| format!("Could not finish the stock Firestorm move: {error}"))?

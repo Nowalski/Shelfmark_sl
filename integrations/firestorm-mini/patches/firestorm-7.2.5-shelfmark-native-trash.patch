@@ -1,0 +1,145 @@
+diff --git a/indra/newview/llappviewer.h b/indra/newview/llappviewer.h
+index 4f1220a..bc99e62 100644
+--- a/indra/newview/llappviewer.h
++++ b/indra/newview/llappviewer.h
+@@ -297,7 +297,7 @@ protected:
+     // NSIS's method is somewhat unreliable since window
+     // can close long before cleanup is done.
+     // sendURLToOtherInstance also relies on this to detect if viewer is up.
+-    static constexpr const char* sWindowClass = "Second Life";
++    static constexpr const char* sWindowClass = "Shelfmark Firestorm";
+ 
+ private:
+ 
+diff --git a/indra/newview/llviewerinventory.cpp b/indra/newview/llviewerinventory.cpp
+index 6978e93..0b257c7 100644
+--- a/indra/newview/llviewerinventory.cpp
++++ b/indra/newview/llviewerinventory.cpp
+@@ -76,6 +76,7 @@
+ #include "rlvcommon.h"
+ // [/RLVa:KB]
+ #include "llviewernetwork.h"
++#include "fsgridhandler.h"
+ 
+ LLInventoryListener sInventoryListener;
+ 
+@@ -328,6 +329,96 @@ public:
+ };
+ LLInventoryHandler gInventoryHandler;
+ 
++namespace
++{
++bool shelfmarkCanMoveItemToTrash(const LLUUID& avatar_id,
++                                 const LLUUID& item_id,
++                                 const LLUUID& source_id)
++{
++    if (avatar_id.isNull() || avatar_id != gAgent.getID()
++        || LLGridManager::getInstance()->getGridId() != "agni"
++        || !gInventory.isInventoryUsable())
++    {
++        return false;
++    }
++
++    LLViewerInventoryItem* item = gInventory.getItem(item_id);
++    const LLUUID trash_id = gInventory.findCategoryUUIDForType(LLFolderType::FT_TRASH);
++    return item && item->getParentUUID() == source_id
++        && trash_id.notNull()
++        && get_is_item_removable(&gInventory, item_id, true);
++}
++
++bool shelfmarkMoveToTrashResponse(const LLSD& notification,
++                                  const LLSD& response,
++                                  const LLUUID& avatar_id,
++                                  const LLUUID& item_id,
++                                  const LLUUID& source_id)
++{
++    if (LLNotificationsUtil::getSelectedOption(notification, response) != 0
++        || !shelfmarkCanMoveItemToTrash(avatar_id, item_id, source_id))
++    {
++        return false;
++    }
++
++    gInventory.removeItem(item_id);
++    return false;
++}
++
++class FSShelfmarkInventoryHandler : public LLCommandHandler
++{
++public:
++    FSShelfmarkInventoryHandler() : LLCommandHandler("shelfmark", UNTRUSTED_ALLOW) { }
++
++    bool handle(const LLSD& params,
++                const LLSD& query_map,
++                const std::string& grid,
++                LLMediaCtrl*) override
++    {
++        // Protocol: secondlife:///app/shelfmark/v1/move/<avatar>/<item>/<source>/trash?grid=agni&request=<uuid>
++        if (params.size() != 6 || params[0].asString() != "v1"
++            || params[1].asString() != "move" || params[5].asString() != "trash"
++            || grid != "agni" || !query_map.has("grid")
++            || query_map["grid"].asString() != "agni"
++            || !query_map.has("request")
++            || LLGridManager::getInstance()->getGridId() != "agni")
++        {
++            return false;
++        }
++
++        LLUUID request_id;
++        LLUUID avatar_id;
++        LLUUID item_id;
++        LLUUID source_id;
++        if (!request_id.set(query_map["request"].asString(), false)
++            || !avatar_id.set(params[2].asString(), false)
++            || !item_id.set(params[3].asString(), false)
++            || !source_id.set(params[4].asString(), false)
++            || request_id.isNull()
++            || !shelfmarkCanMoveItemToTrash(avatar_id, item_id, source_id))
++        {
++            return false;
++        }
++
++        LLViewerInventoryItem* item = gInventory.getItem(item_id);
++        if (!item)
++        {
++            return false;
++        }
++        LLSD args;
++        args["ITEM"] = item->getName();
++        LLNotificationsUtil::add(
++            "ShelfmarkMoveToTrash",
++            args,
++            LLSD(),
++            boost::bind(&shelfmarkMoveToTrashResponse, _1, _2, avatar_id, item_id, source_id));
++        return true;
++    }
++};
++
++FSShelfmarkInventoryHandler gFSShelfmarkInventoryHandler;
++}
++
+ ///----------------------------------------------------------------------------
+ /// Class LLViewerInventoryItem
+ ///----------------------------------------------------------------------------
+diff --git a/indra/newview/skins/default/xui/en/notifications.xml b/indra/newview/skins/default/xui/en/notifications.xml
+index 0df0d66..26fcfda 100644
+--- a/indra/newview/skins/default/xui/en/notifications.xml
++++ b/indra/newview/skins/default/xui/en/notifications.xml
+@@ -471,6 +471,18 @@ Please input a valid text.
+         yestext="OK"/>
+     </notification>
+     
++    <notification
++        icon="alertmodal.tga"
++        name="ShelfmarkMoveToTrash"
++        type="alertmodal">
++        Move [ITEM] to Firestorm's Trash folder?
++        <tag>confirm</tag>
++        <usetemplate
++            name="okcancelbuttons"
++            notext="Cancel"
++            yestext="Move to Trash"/>
++    </notification>
++
+     <notification
+         icon="alertmodal.tga"
+         name="ConfirmListingCutOrDelete"

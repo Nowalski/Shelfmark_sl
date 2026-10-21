@@ -60,6 +60,21 @@ h2 { margin-bottom: 16px; font-size: clamp(29px, 3vw, 39px); font-weight: 650; l
 .feature h3, .steps h3 { margin-bottom: 10px; font-size: 18px; font-weight: 650; letter-spacing: -.4px; line-height: 1.35; }
 .feature p, .steps p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.8; }
 .feature-note { margin: 17px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.6; }
+.viewer-options { padding-top: 4px; padding-bottom: 86px; }
+.viewer-options-heading { max-width: 690px; margin-bottom: 34px; }
+.viewer-options-heading > p:last-child { max-width: 580px; margin-bottom: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.75; }
+.viewer-option-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1px solid var(--line); }
+.viewer-option { padding: 27px 32px 28px 0; }
+.viewer-option + .viewer-option { padding-left: 32px; border-left: 1px solid var(--line); }
+.viewer-option-kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; color: var(--sage); font: 10px "Cascadia Code", Consolas, monospace; letter-spacing: .7px; }
+.viewer-option-kicker span { color: var(--ink-soft); font: 10px "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; letter-spacing: .35px; text-transform: uppercase; }
+.viewer-option h3 { margin-bottom: 10px; font-size: 22px; font-weight: 650; letter-spacing: -.6px; }
+.viewer-option > p:not(.viewer-option-kicker) { max-width: 500px; margin-bottom: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.8; }
+.viewer-option .text-link { margin-top: 17px; }
+.viewer-options-note { display: grid; grid-template-columns: 178px minmax(0, 1fr); gap: 5px 18px; padding-top: 18px; }
+.viewer-options-note > span { grid-row: 1 / span 2; padding-top: 2px; color: var(--sage); font: 9px "Cascadia Code", Consolas, monospace; letter-spacing: .8px; }
+.viewer-options-note p { margin: 0; color: var(--ink-soft); font-size: 11px; line-height: 1.65; }
+.viewer-options-note p:first-of-type { color: var(--ink); font-weight: 600; }
 .getting-started { padding: 76px 0; background: var(--sage-wash); border-block: 1px solid var(--line); }
 .getting-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1fr); gap: clamp(46px, 9vw, 130px); }
 .getting-heading h2 { max-width: 370px; }
@@ -85,7 +100,8 @@ h2 { margin-bottom: 16px; font-size: clamp(29px, 3vw, 39px); font-weight: 650; l
 .site-footer .brand { color: var(--ink); }
 .site-footer .brand span { font-size: 17px; }
 .site-footer p { margin: 0; line-height: 1.7; }
-.site-footer > a:last-child { text-underline-offset: 4px; }
+.footer-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px 18px; }
+.footer-links a { text-underline-offset: 4px; }
 .has-js [data-reveal] { opacity: 0; transform: translateY(12px); transition: opacity .45s ease, transform .45s ease; }
 .has-js [data-reveal].is-visible { opacity: 1; transform: none; }
 @keyframes preview-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -113,6 +129,14 @@ h2 { margin-bottom: 16px; font-size: clamp(29px, 3vw, 39px); font-weight: 650; l
   .feature + .feature { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
   .feature-icon { margin-bottom: 15px; }
   .feature p { max-width: 520px; }
+  .viewer-options { padding-top: 0; padding-bottom: 59px; }
+  .viewer-options-heading { margin-bottom: 25px; }
+  .viewer-option-list { grid-template-columns: 1fr; }
+  .viewer-option { padding: 23px 0; }
+  .viewer-option + .viewer-option { padding-left: 0; border-top: 1px solid var(--line); border-left: 0; }
+  .viewer-option-kicker { margin-bottom: 12px; }
+  .viewer-options-note { grid-template-columns: 1fr; gap: 5px; }
+  .viewer-options-note > span { grid-row: auto; padding: 0 0 3px; }
   .getting-started { padding-block: 52px; }
   .getting-grid, .privacy { grid-template-columns: 1fr; gap: 30px; }
   .getting-heading h2, .getting-heading > p:not(.eyebrow), .privacy h2 { max-width: 520px; }
@@ -120,6 +144,7 @@ h2 { margin-bottom: 16px; font-size: clamp(29px, 3vw, 39px); font-weight: 650; l
   .closing { padding-block: 52px; }
   .site-footer { grid-template-columns: 1fr auto; gap: 16px; padding-block: 24px; }
   .site-footer p { grid-row: 2; grid-column: 1 / -1; }
+  .footer-links { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 480px) {
   .site-header nav a:first-child { display: none; }

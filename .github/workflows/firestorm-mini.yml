@@ -1,0 +1,192 @@
+name: Build Firestorm Mini
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows viewer
+    runs-on: windows-2022
+    timeout-minutes: 360
+    env:
+      AUTOBUILD_ADDRSIZE: "64"
+      AUTOBUILD_VSVER: "170"
+      AUTOBUILD_INSTALLABLE_CACHE: ${{ github.workspace }}/.autobuild-installables
+      AUTOBUILD_VARIABLES_FILE: ${{ github.workspace }}/fs-build-variables/variables
+      FIRESTORM_COMMIT: 4ac201fdc56127de27de34567286885f4e75d194
+      FIRESTORM_VERSION: 7.2.5.81788
+    steps:
+      - name: Check out Shelfmark
+        uses: actions/checkout@v7
+
+      - name: Check out Firestorm 7.2.5
+        uses: actions/checkout@v7
+        with:
+          repository: FirestormViewer/phoenix-firestorm
+          ref: 4ac201fdc56127de27de34567286885f4e75d194
+          path: firestorm
+          fetch-depth: 0
+
+      - name: Check out Firestorm build variables
+        uses: actions/checkout@v7
+        with:
+          repository: FirestormViewer/fs-build-variables
+          ref: c17312d38377c003977cf5b6dcc83c6042eba194
+          path: fs-build-variables
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Verify the official release source
+        shell: bash
+        working-directory: firestorm
+        run: |
+          test "$(git rev-parse HEAD)" = "$FIRESTORM_COMMIT"
+          test "$(git rev-parse 'refs/tags/Firestorm_Release_7.2.5.81788^{commit}')" = "$FIRESTORM_COMMIT"
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+          $nsisPath = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
+          if (-not (Test-Path (Join-Path $nsisPath 'makensis.exe'))) {
+            throw 'NSIS installation did not provide makensis.exe.'
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisPath
+
+      - name: Install Firestorm build tools
+        shell: bash
+        working-directory: firestorm
+        run: |
+          python -m pip install -r requirements.txt
+
+      - name: Apply and check the Shelfmark patch
+        shell: bash
+        working-directory: firestorm
+        run: |
+          patch="$GITHUB_WORKSPACE/integrations/firestorm-mini/patches/firestorm-7.2.5-shelfmark-native-trash.patch"
+          git apply --check "$patch"
+          git apply "$patch"
+          git diff --check
+
+      - name: Cache Firestorm dependencies
+        uses: actions/cache@v6
+        with:
+          path: .autobuild-installables
+          key: windows-64-ReleaseFS-open-${{ env.FIRESTORM_COMMIT }}-${{ hashFiles('firestorm/autobuild.xml') }}
+          restore-keys: |
+            windows-64-ReleaseFS-open-${{ env.FIRESTORM_COMMIT }}-
+
+      - name: Configure the open Firestorm build
+        shell: bash
+        working-directory: firestorm
+        run: autobuild configure -A 64 -c ReleaseFS_open -- --package --chan ShelfmarkMini -DLL_TESTS:BOOL=FALSE
+
+      - name: Build Firestorm
+        shell: bash
+        working-directory: firestorm
+        run: autobuild build -A 64 -c ReleaseFS_open --no-configure
+
+      - name: Prepare release files
+        shell: pwsh
+        run: |
+          $assets = Join-Path $env:GITHUB_WORKSPACE 'release-assets'
+          New-Item -ItemType Directory -Path $assets -Force | Out-Null
+
+          $setupFiles = @(Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'firestorm/build-*/newview/Release') -Filter '*Setup.exe' -File -ErrorAction SilentlyContinue)
+          if ($setupFiles.Count -ne 1) {
+            Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'firestorm') -Directory -Filter 'build-*' | ForEach-Object { Write-Host $_.FullName }
+            throw "Expected one Firestorm installer, found $($setupFiles.Count)."
+          }
+
+          $installerName = "Shelfmark-Firestorm-Mini-$env:FIRESTORM_VERSION-Setup.exe"
+          $installerPath = Join-Path $assets $installerName
+          Copy-Item -LiteralPath $setupFiles[0].FullName -Destination $installerPath
+
+          $patchSource = Join-Path $env:GITHUB_WORKSPACE 'integrations/firestorm-mini/patches/firestorm-7.2.5-shelfmark-native-trash.patch'
+          Copy-Item -LiteralPath $patchSource -Destination $assets
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'integrations/firestorm-mini/LICENSE') -Destination $assets
+
+          $manifest = [ordered]@{
+            viewer = 'Firestorm Mini (experimental)'
+            firestorm_version = $env:FIRESTORM_VERSION
+            firestorm_release_tag = 'Firestorm_Release_7.2.5.81788'
+            firestorm_commit = $env:FIRESTORM_COMMIT
+            shelfmark_commit = $env:GITHUB_SHA
+            build_configuration = 'ReleaseFS_open'
+            audio_and_voice = 'Not included (FMOD is omitted from the open build configuration).'
+            patch_file = 'firestorm-7.2.5-shelfmark-native-trash.patch'
+            patch_sha256 = (Get-FileHash -LiteralPath $patchSource -Algorithm SHA256).Hash.ToLowerInvariant()
+            installer = $installerName
+            installer_sha256 = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            built_at_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+          }
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $assets 'build-info.json') -Encoding utf8NoBOM
+
+          $checksums = Get-ChildItem -LiteralPath $assets -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object {
+            "$(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash)  $($_.Name)"
+          }
+          $checksums | Set-Content -LiteralPath (Join-Path $assets 'SHA256SUMS.txt') -Encoding utf8NoBOM
+
+          @'
+          ## Firestorm Mini for Shelfmark
+
+          This experimental Windows viewer adds confirmed, single-item moves to Firestorm's Trash folder for Shelfmark. It targets the Second Life main grid. Firestorm still requires the user to confirm each move.
+
+          This installer uses Firestorm's `ReleaseFS_open` configuration. It does not include FMOD sound or voice. It is a standalone Firestorm-derived viewer and is not an official Firestorm release. Close other Firestorm processes before starting a Shelfmark connection.
+
+          The Firestorm source patch is provided under LGPL-2.1-only; see the included license and patch file. Shelfmark's desktop application has separate personal-use terms, which do not apply to the Firestorm viewer or patch. Bundled third-party components retain their own notices and terms in the installer.
+
+          Upstream source: https://github.com/FirestormViewer/phoenix-firestorm/tree/Firestorm_Release_7.2.5.81788
+          Shelfmark patch and build workflow: https://github.com/Nowalski/Shelfmark_sl/tree/main/integrations/firestorm-mini
+          '@ | Set-Content -LiteralPath (Join-Path $assets 'release-notes.md') -Encoding utf8NoBOM
+
+      - name: Upload installer and source materials
+        uses: actions/upload-artifact@v7
+        with:
+          name: firestorm-mini-${{ env.FIRESTORM_VERSION }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish experimental download
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      FIRESTORM_VERSION: 7.2.5.81788
+    permissions:
+      contents: write
+    steps:
+      - name: Download build files
+        uses: actions/download-artifact@v8
+        with:
+          name: firestorm-mini-${{ env.FIRESTORM_VERSION }}
+          path: release-assets
+
+      - name: Publish the Firestorm Mini pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="firestorm-mini-${{ env.FIRESTORM_VERSION }}"
+          installer="release-assets/Shelfmark-Firestorm-Mini-${{ env.FIRESTORM_VERSION }}-Setup.exe"
+          patch="release-assets/firestorm-7.2.5-shelfmark-native-trash.patch"
+          license="release-assets/LICENSE"
+          manifest="release-assets/build-info.json"
+          checksums="release-assets/SHA256SUMS.txt"
+          notes="release-assets/release-notes.md"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$installer" "$patch" "$license" "$manifest" "$checksums" --clobber
+            gh release edit "$tag" --title "Firestorm Mini ${{ env.FIRESTORM_VERSION }} (experimental)" --notes-file "$notes" --prerelease --latest=false
+          else
+            gh release create "$tag" "$installer" "$patch" "$license" "$manifest" "$checksums" --target "$GITHUB_SHA" --title "Firestorm Mini ${{ env.FIRESTORM_VERSION }} (experimental)" --notes-file "$notes" --prerelease --latest=false
+          fi

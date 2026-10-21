@@ -90,8 +90,9 @@ jobs:
           releaseBody: |
             Shelfmark desktop installers and signed updater metadata.
 
-            - Windows: local catalogue and live Trash actions through stock Firestorm.
+            - Windows: local catalogue and optional experimental Trash moves through the separately downloaded Firestorm Mini viewer. The current open build has no sound or voice.
             - macOS and Linux: local catalogue; live Firestorm actions are not currently available.
+            - Firestorm Mini 7.2.5 is a separate experimental viewer pre-release. Its source patch is under LGPL-2.1-only; that license does not apply to Shelfmark itself.
 
             Shelfmark is source-available under personal-use terms. See the repository LICENSE.
           releaseDraft: true

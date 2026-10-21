@@ -31,7 +31,7 @@
         <p class="eyebrow">Desktop app for Second Life &amp; Firestorm</p>
         <h1 id="hero-title">Shelfmark</h1>
         <p class="hero-tagline">Find and organise your<br class="desktop-break"> Second Life inventory.</p>
-        <p class="hero-description">Search your Firestorm snapshot, keep notes and tags, and send selected items to Trash on Windows.</p>
+        <p class="hero-description">Search your Firestorm snapshot, keep notes and tags, and move items to Trash on Windows with an optional patched viewer.</p>
         <div class="hero-actions">
           <a class="button button-primary" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg><span>Download Shelfmark</span></a>
           <a class="button button-secondary" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md">Read the user guide <span aria-hidden="true">→</span></a>
@@ -40,7 +40,7 @@
       </div>
       <figure class="app-preview section-wrap">
         <a href="assets/shelfmark-desktop.png" aria-label="View the full Shelfmark screenshot"><img src="assets/shelfmark-desktop.png" alt="Shelfmark displaying a searchable inventory catalogue, folder navigation, and item details. The sample data is fictional." width="1440" height="900" fetchpriority="high"></a>
-        <figcaption><span>Actual app interface · Fictional sample data</span><span>Live Firestorm Trash actions are available on Windows.</span></figcaption>
+        <figcaption><span>Actual app interface · Fictional sample data</span><span>Windows Trash actions use an optional experimental Firestorm Mini build.</span></figcaption>
       </figure>
     </section>
     <section class="features section-wrap" id="features" aria-labelledby="features-title">
@@ -53,7 +53,7 @@
         <article class="feature" data-reveal>
           <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>
           <h3>Move items to Trash</h3>
-          <p>On Windows, send one selected item to Firestorm’s Trash. Shelfmark confirms the move before updating the catalogue.</p>
+          <p>With the optional Firestorm Mini patch, move one selected item to Trash on Windows. Firestorm asks first; Shelfmark checks the live location.</p>
         </article>
         <article class="feature" data-reveal>
           <svg class="feature-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg>
@@ -68,6 +68,33 @@
       </div>
       <p class="feature-note">Candidate groups are clues to review. Importing and browsing a snapshot are read-only.</p>
     </section>
+    <section class="viewer-options section-wrap" id="viewer-options" aria-labelledby="viewer-options-title">
+      <div class="viewer-options-heading" data-reveal>
+        <p class="eyebrow">Two ways to connect</p>
+        <h2 id="viewer-options-title">Connect your regular viewer, or use Mini for Trash moves.</h2>
+        <p>Importing and browsing do not need a live viewer. These options are for connecting Shelfmark to Firestorm on Windows.</p>
+      </div>
+      <div class="viewer-option-list">
+        <article class="viewer-option" data-reveal>
+          <p class="viewer-option-kicker">01 <span>Standard setup</span></p>
+          <h3>Stock Firestorm</h3>
+          <p>Connect the viewer you already use. Shelfmark reads the active avatar and checks it against your selected snapshot. Packaged releases do not move items through stock Firestorm yet.</p>
+          <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/FIRESTORM.md">Connect stock Firestorm <span aria-hidden="true">→</span></a>
+        </article>
+        <article class="viewer-option viewer-option-mini" data-reveal>
+          <p class="viewer-option-kicker">02 <span>Experimental</span></p>
+          <h3>Firestorm Mini</h3>
+          <p>Firestorm Mini is Shelfmark’s name for an experimental Firestorm 7.2.5 build that adds confirmed one-item Trash moves. The Windows installer uses an open configuration without FMOD sound or voice. This is not an official Firestorm release.</p>
+          <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788">Download the Windows viewer <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/integrations/firestorm-mini/README.md">Build from source and read the terms <span aria-hidden="true">→</span></a>
+        </article>
+      </div>
+      <div class="viewer-options-note">
+        <span>FIRESTORM MINI LIMITS</span>
+        <p>Windows and the Second Life main grid · one item at a time · Trash only</p>
+        <p>Every move needs confirmation in Firestorm. Shelfmark checks the live location; the bridge does not permanently delete items.</p>
+      </div>
+    </section>
     <section class="getting-started" id="getting-started" aria-labelledby="getting-title">
       <div class="section-wrap getting-grid">
         <div class="getting-heading" data-reveal>
@@ -79,7 +106,7 @@
         <ol class="steps">
           <li data-reveal><span class="step-number">01</span><div><h3>Import your snapshot</h3><p>Choose <strong>Import Firestorm cache</strong> and confirm the matching avatar. Close Firestorm first for the freshest saved cache.</p></div></li>
           <li data-reveal><span class="step-number">02</span><div><h3>Search and organise</h3><p>Find an item by name or folder, add your own notes and tags, and save it to a collection.</p></div></li>
-          <li data-reveal><span class="step-number">03</span><div><h3>Connect Firestorm for Trash</h3><p>On Windows, connect the matching stock Firestorm session on the Second Life main grid, review a selected item, and move it to Trash.</p></div></li>
+          <li data-reveal><span class="step-number">03</span><div><h3>Choose a viewer connection</h3><p>Use stock Firestorm to check the active avatar, or install the optional <a href="https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788">Firestorm Mini viewer</a> for confirmed Trash moves.</p></div></li>
         </ol>
       </div>
     </section>
@@ -87,7 +114,7 @@
       <div><p class="eyebrow">Kept on your device</p><h2 id="privacy-title">Your catalogue stays on your computer.</h2></div>
       <div class="privacy-copy">
         <p>Your inventory, notes, tags, and photos are not uploaded to a Shelfmark service. Shelfmark reads the cache you select and never asks for your Second Life password.</p>
-        <p>Windows Trash actions run through stock Firestorm on your computer. The desktop app contacts GitHub Releases to check for signed updates.</p>
+        <p>Viewer connections run locally. Firestorm Mini is a separate experimental viewer download, not part of the Shelfmark installer. The desktop app contacts GitHub Releases to check for signed updates.</p>
         <a class="text-link" href="https://github.com/Nowalski/Shelfmark_sl/blob/main/docs/USER_GUIDE.md#updates-and-local-data">Privacy and local data <span aria-hidden="true">→</span></a>
       </div>
     </section>
@@ -95,19 +122,19 @@
       <div class="section-wrap closing-inner" data-reveal>
         <p class="eyebrow">Get Shelfmark</p>
         <h2 id="download-title">Make room in your inventory.</h2>
-        <p>Download a desktop installer for Windows, macOS, or Linux.<br> Live Firestorm Trash actions are currently available on Windows.</p>
+        <p>Download Shelfmark for Windows, macOS, or Linux. The optional Firestorm Mini viewer is a separate Windows download.</p>
         <div class="hero-actions">
           <a class="button button-primary" href="https://github.com/Nowalski/Shelfmark_sl/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg><span>Download Shelfmark</span></a>
           <a class="button button-secondary" href="https://github.com/Nowalski/Shelfmark_sl">View on GitHub <span aria-hidden="true">↗</span></a>
         </div>
-        <p class="terms-note">Source available under <a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">personal-use terms</a>.</p>
+        <p class="terms-note">Shelfmark uses <a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">personal-use terms</a>. Firestorm Mini and its patch are separate Firestorm-derived components under LGPL-2.1-only.</p>
       </div>
     </section>
   </main>
   <footer class="site-footer section-wrap">
     <a class="brand" href="#top"><img src="assets/shelfmark-mark.svg" alt="" width="30" height="30"><span>Shelfmark</span></a>
     <p>Independent software for Second Life inventory.<br> Not affiliated with Linden Lab or the Firestorm team.</p>
-    <a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">Personal-use terms</a>
+    <div class="footer-links"><a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/LICENSE">Shelfmark app terms</a><a href="https://github.com/Nowalski/Shelfmark_sl/blob/main/integrations/firestorm-mini/README.md">Viewer patch terms</a></div>
   </footer>
   <script>
     const revealItems = document.querySelectorAll('[data-reveal]');

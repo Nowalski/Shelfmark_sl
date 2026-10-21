@@ -32,11 +32,12 @@ type CandidateFilter = 'All clues' | 'Demo-like name' | 'Possible package' | 'Po
 type SortMode = 'Relevance' | 'Name A–Z' | 'Newest first';
 type CacheCandidate = { path: string; fileName: string; avatarId: string; bytes: number; modifiedAtMs: number };
 type FirestormDiscovery = { viewerRunning: boolean | null; cacheDirectories: string[]; candidates: CacheCandidate[]; avatarNames: Record<string, string> };
-type StockLeapStatus = { phase: string; connected: boolean; avatarId: string | null; apiNames: string[]; inventoryWindowPaths: string[]; inventoryPathsScanned: boolean; message: string };
+type StockLeapStatus = { phase: string; connected: boolean; nativeBridgeEnabled: boolean; avatarId: string | null; apiNames: string[]; inventoryWindowPaths: string[]; inventoryPathsScanned: boolean; message: string };
 
 function sameStockLeapStatus(left: StockLeapStatus, right: StockLeapStatus) {
   return left.phase === right.phase
     && left.connected === right.connected
+    && left.nativeBridgeEnabled === right.nativeBridgeEnabled
     && left.avatarId === right.avatarId
     && left.inventoryPathsScanned === right.inventoryPathsScanned
     && left.message === right.message
@@ -211,6 +212,7 @@ function fromLocalIndex(row: any): InventoryItem {
 
 function App() {
   const desktop = useMemo(isDesktop, []);
+  const windowsDesktop = desktop && navigator.userAgent.toLowerCase().includes('windows');
   const searchShortcut = useMemo(() => /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K', []);
   const searchRef = useRef<HTMLInputElement>(null);
   const itemImageInputRef = useRef<HTMLInputElement>(null);
@@ -329,7 +331,7 @@ function App() {
   const [cacheDialogOpen, setCacheDialogOpen] = useState(false);
   const [cacheCandidates, setCacheCandidates] = useState<CacheCandidate[]>([]);
   const [firestormRunning, setFirestormRunning] = useState<boolean | null>(null);
-  const [stockLeapStatus, setStockLeapStatus] = useState<StockLeapStatus>({ phase: 'idle', connected: false, avatarId: null, apiNames: [], inventoryWindowPaths: [], inventoryPathsScanned: false, message: 'Stock Firestorm LEAP is not connected.' });
+  const [stockLeapStatus, setStockLeapStatus] = useState<StockLeapStatus>({ phase: 'idle', connected: false, nativeBridgeEnabled: false, avatarId: null, apiNames: [], inventoryWindowPaths: [], inventoryPathsScanned: false, message: 'Stock Firestorm LEAP is not connected.' });
   const stockLeapConnectionRef = useRef({ connected: false, version: 0 });
   if (stockLeapConnectionRef.current.connected !== stockLeapStatus.connected) {
     stockLeapConnectionRef.current = { connected: stockLeapStatus.connected, version: stockLeapConnectionRef.current.version + 1 };
@@ -411,23 +413,25 @@ function App() {
     return () => { disposed = true; window.clearInterval(timer); };
   }, [desktop]);
 
-  async function startStockFirestormLeap() {
+  async function startStockFirestormLeap(nativeBridgeEnabled = false) {
     if (!desktop || stockLeapBusyRef.current) return;
     setViewerLaunchError('');
     stockLeapBusyRef.current = true;
     setStockLeapBusy(true);
     try {
-      const detectedPath = await invoke<string | null>('discover_stock_firestorm_executable');
+      const detectedPath = nativeBridgeEnabled ? null : await invoke<string | null>('discover_stock_firestorm_executable');
       const executablePath = detectedPath ?? await open({
-        title: 'Choose stock Firestorm',
+        title: nativeBridgeEnabled ? 'Choose patched Firestorm Mini' : 'Choose stock Firestorm',
         multiple: false,
         directory: false,
         filters: [{ name: 'Firestorm viewer', extensions: ['exe'] }],
       });
       if (typeof executablePath !== 'string') return;
-      const status = await invoke<StockLeapStatus>('start_stock_firestorm_leap', { executablePath });
+      const status = await invoke<StockLeapStatus>('start_stock_firestorm_leap', { executablePath, nativeBridgeEnabled });
       setStockLeapStatus(status);
-      pushToast(detectedPath ? 'Detected Firestorm is starting with the Shelfmark LEAP helper.' : 'Stock Firestorm is starting with the Shelfmark LEAP helper.');
+      pushToast(nativeBridgeEnabled
+        ? 'Patched Firestorm Mini is starting with the Shelfmark connection.'
+        : detectedPath ? 'Detected Firestorm is starting with the Shelfmark LEAP helper.' : 'Stock Firestorm is starting with the Shelfmark LEAP helper.');
     } catch (error) {
       setViewerLaunchError(String(error));
       pushToast(String(error));
@@ -452,7 +456,7 @@ function App() {
       const viewerNames = await invoke<Record<string, string>>('resolve_firestorm_avatar_names', { avatarIds: [`${inspection.avatarId}@secondlife`] }).catch((): Record<string, string> => ({}));
       if (!stockLeapConnectionRef.current.connected || stockLeapConnectionRef.current.version !== connectionVersion) return false;
       setFirestormAvatarNames((current) => ({ ...current, ...viewerNames }));
-      setStockLeapStatus((current) => ({ ...current, avatarId: inspection.avatarId, apiNames: inspection.apiNames, inventoryWindowPaths: inspection.inventoryWindowPaths, inventoryPathsScanned: inspection.inventoryPathsScanned, message: 'Connected to stock Firestorm. LEAP APIs and active avatar were read.' }));
+      setStockLeapStatus((current) => ({ ...current, avatarId: inspection.avatarId, apiNames: inspection.apiNames, inventoryWindowPaths: inspection.inventoryWindowPaths, inventoryPathsScanned: inspection.inventoryPathsScanned, message: current.nativeBridgeEnabled ? 'Connected to patched Firestorm Mini. LEAP reads and native Trash actions are ready.' : 'Connected to stock Firestorm. LEAP APIs and active avatar were read.' }));
       pushToast(`LEAP read ${inspection.apiNames.length} APIs for ${viewerNames[`${inspection.avatarId}@secondlife`] ?? inspection.avatarId}.`);
       return true;
     } catch (error) {
@@ -1081,7 +1085,8 @@ function App() {
   const moveBridgeSupported = supportsStockLeapMove(avatar.id);
   const ordinaryFolderMovesPaused = !STOCK_LEAP_ORDINARY_FOLDER_MOVES_ENABLED;
   const stockLeapMoveReady = stockLeapStatus.connected && stockLeapStatus.avatarId?.toLowerCase() === avatar.id.split('@')[0].toLowerCase()
-    && ['LLAgent', 'LLCommandDispatcher', 'LLInventory', 'LLWindow'].every((api) => stockLeapStatus.apiNames.includes(api));
+    && ['LLAgent', 'LLCommandDispatcher', 'LLInventory', 'LLWindow'].every((api) => stockLeapStatus.apiNames.includes(api))
+    && (stockLeapStatus.nativeBridgeEnabled || DEVELOPMENT_BUILD);
   const moveDestinationOptions = useMemo(() => {
     if (!moveDialogOpen || !selected) return [] as { folder: FolderSummary; path: string }[];
     const filter = moveFolderSearch.trim().toLocaleLowerCase();
@@ -1378,7 +1383,7 @@ function App() {
     const requestedFolderId = selectedFolderId;
     const movingItem = targetItem;
     setSelectedId(movingItem.id);
-    setMoveFeedback({ itemId: movingItem.id, state: 'pending', message: 'Asking Firestorm to move this item…' });
+    setMoveFeedback({ itemId: movingItem.id, state: 'pending', message: stockLeapStatus.nativeBridgeEnabled ? 'Waiting for Firestorm Mini to confirm the move…' : 'Asking Firestorm to move this item…' });
     setMoveBusy(true);
     try {
       let folders = folderTreeLoadedFor === requestedAvatarId ? folderTree : [];
@@ -1394,6 +1399,7 @@ function App() {
       const result = await invoke<StockLeapMoveResult>('move_stock_firestorm_inventory_item', {
         avatarId: requestedAvatarId,
         itemId: movingItem.id,
+        sourceParentId: movingItem.parentFolderId,
         destinationFolderId,
       });
       if (result.changed) {
@@ -2122,7 +2128,7 @@ function App() {
           {avatarListError && <div className="local-save-banner" role="alert"><CircleAlert size={17} /><div><b>Could not open local snapshots</b><p>{avatarListError}</p></div><button className="quiet-button" onClick={() => setAvatarListRetry((retry) => retry + 1)}>Retry</button></div>}
           {prefsSaveError && <div className="local-save-banner" role="alert"><CircleAlert size={17} /><div><b>Local changes need saving</b><p>{prefsSaveError}</p></div><button className="quiet-button" onClick={() => setPrefs((current) => ({ ...current }))}>Retry save</button><button className="primary-action" disabled={profileBusy || photoBusy} onClick={() => void exportProfile()}>Export profile</button></div>}
           {snapshotRefreshNeededFor === avatar.id && <div className="review-banner snapshot-refresh-banner"><RefreshCw size={15} /><span>Firestorm confirmed a live move and Shelfmark updated the item’s folder trail. Other snapshot data may stay unchanged until Firestorm saves its cache; close all viewer windows, then refresh.</span><button className="quiet-button" onClick={() => void refreshAvatarSnapshot()} disabled={snapshotRefreshBusy || busy}>{snapshotRefreshBusy ? 'Refreshing…' : 'Refresh snapshot'}</button></div>}
-          {page === 'home' ? <HomePage desktop={desktop} avatar={avatar} viewerSnapshot={viewerSnapshotFor(avatars, stockLeapStatus.avatarId)} stockLeapStatus={stockLeapStatus} stockLeapAvatarLabel={stockLeapAvatarLabel} stockLeapBusy={stockLeapBusy} viewerLaunchError={viewerLaunchError} onStartStockLeap={() => void startStockFirestormLeap()} onImport={() => void importCache()} onSelectViewerSnapshot={switchToViewerSnapshot} onNavigate={navigateToPage} /> : page === 'settings' ? <SettingsPage desktop={desktop} avatar={avatar} summary={importSummary} stockLeapStatus={stockLeapStatus} stockLeapAvatarLabel={stockLeapAvatarLabel} stockLeapBusy={stockLeapBusy} stockLeapApiBusy={stockLeapApiBusy} stockLeapApiDescription={stockLeapApiDescription} stockLeapViewName={stockLeapViewName} stockLeapViewBusy={stockLeapViewBusy} stockLeapViewInspection={stockLeapViewInspection} onStockLeapViewNameChange={setStockLeapViewName} onInspectStockLeapView={() => void inspectStockFirestormInventoryView()} onDescribeStockLeapApi={(api) => void describeStockFirestormLeapApi(api)} onStartStockLeap={() => void startStockFirestormLeap()} onInspectStockLeap={() => void inspectStockFirestormLeap()} onScanStockLeapInventoryUi={() => void scanStockFirestormInventoryUi()} onImport={() => void importCache()} onHelp={() => setHelpOpen(true)} updateAvailable={pendingUpdate !== null} updateVersion={pendingUpdate?.version ?? null} updateStatus={updateStatus} updateBusy={updateBusy} onCheckUpdates={() => void checkForUpdates()} onInstallUpdate={() => void installAvailableUpdate()} profileBusy={profileBusy} onExportProfile={() => void exportProfile()} onImportProfile={() => profileBackupInputRef.current?.click()} protectedItemCount={prefs.protectedItemIds.length} protectedFolderCount={prefs.protectedFolderIds.length} onClearProtection={clearProtectionMarks} /> : page === 'collections' && !collectionView ? (
+          {page === 'home' ? <HomePage desktop={desktop} avatar={avatar} viewerSnapshot={viewerSnapshotFor(avatars, stockLeapStatus.avatarId)} stockLeapStatus={stockLeapStatus} stockLeapAvatarLabel={stockLeapAvatarLabel} stockLeapBusy={stockLeapBusy} viewerLaunchError={viewerLaunchError} onStartStockLeap={() => void startStockFirestormLeap()} onStartFirestormMini={() => void startStockFirestormLeap(true)} windowsDesktop={windowsDesktop} onImport={() => void importCache()} onSelectViewerSnapshot={switchToViewerSnapshot} onNavigate={navigateToPage} /> : page === 'settings' ? <SettingsPage desktop={desktop} avatar={avatar} summary={importSummary} stockLeapStatus={stockLeapStatus} stockLeapAvatarLabel={stockLeapAvatarLabel} stockLeapBusy={stockLeapBusy} stockLeapApiBusy={stockLeapApiBusy} stockLeapApiDescription={stockLeapApiDescription} stockLeapViewName={stockLeapViewName} stockLeapViewBusy={stockLeapViewBusy} stockLeapViewInspection={stockLeapViewInspection} onStockLeapViewNameChange={setStockLeapViewName} onInspectStockLeapView={() => void inspectStockFirestormInventoryView()} onDescribeStockLeapApi={(api) => void describeStockFirestormLeapApi(api)} onStartStockLeap={() => void startStockFirestormLeap()} onInspectStockLeap={() => void inspectStockFirestormLeap()} onScanStockLeapInventoryUi={() => void scanStockFirestormInventoryUi()} onImport={() => void importCache()} onHelp={() => setHelpOpen(true)} updateAvailable={pendingUpdate !== null} updateVersion={pendingUpdate?.version ?? null} updateStatus={updateStatus} updateBusy={updateBusy} onCheckUpdates={() => void checkForUpdates()} onInstallUpdate={() => void installAvailableUpdate()} profileBusy={profileBusy} onExportProfile={() => void exportProfile()} onImportProfile={() => profileBackupInputRef.current?.click()} protectedItemCount={prefs.protectedItemIds.length} protectedFolderCount={prefs.protectedFolderIds.length} onClearProtection={clearProtectionMarks} /> : page === 'collections' && !collectionView ? (
             <CollectionsPage mediaBusy={photoBusy || profileBusy} collections={prefs.collections} items={effectiveCatalog} coverUrls={collectionCoverUrls} canCreate={prefs.collections.length < 1000} onOpen={(id) => setCollectionView(id)} onCreate={openCreateCollectionDialog} onAddCover={addCover} onDelete={deleteCollection} />
           ) : (
             <>
@@ -2242,11 +2248,11 @@ function App() {
                           <span className="viewer-action-label"><FolderOpen size={13} />{moveDialogLoading ? 'Loading folders…' : 'Move to folder…'}</span>
                           <span>{ordinaryFolderMovesPaused ? 'Paused' : stockLeapMoveReady ? 'Ready' : ''}</span>
                         </button>
-                        <button className="viewer-action trash-action" onClick={() => void requestItemMove(null)} disabled={!moveBridgeSupported || !stockLeapMoveReady || !selected.parentFolderId || moveBusy} title={!moveBridgeSupported ? 'Stock LEAP actions currently support the Second Life main grid only.' : !stockLeapMoveReady ? 'Launch Firestorm from Home and select the matching main-grid snapshot first.' : 'Move to Trash immediately in Firestorm.'}>
+                        <button className="viewer-action trash-action" onClick={() => void requestItemMove(null)} disabled={!moveBridgeSupported || !stockLeapMoveReady || !selected.parentFolderId || moveBusy} title={!moveBridgeSupported ? 'Stock LEAP actions currently support the Second Life main grid only.' : !stockLeapMoveReady ? 'Launch Firestorm from Home and select the matching main-grid snapshot first.' : stockLeapStatus.nativeBridgeEnabled ? 'Firestorm Mini will ask you to confirm this Trash move.' : 'Move to Trash immediately in Firestorm.'}>
                           <span className="viewer-action-label"><X size={13} />{moveBusy ? 'Sending request…' : 'Move to Trash'}</span>
                           <span>{stockLeapMoveReady ? 'Ready' : 'Connect first'}</span>
                         </button>
-                        <small className="viewer-action-note">{moveBridgeSupported ? stockLeapMoveReady ? 'Firestorm confirms the Trash move before Shelfmark updates this view. Moves to other folders are paused.' : 'Connect Firestorm from Home and select the matching main-grid snapshot.' : 'Live Trash requires a Second Life main-grid snapshot.'}</small>
+                        <small className="viewer-action-note">{moveBridgeSupported ? stockLeapMoveReady ? stockLeapStatus.nativeBridgeEnabled ? 'Firestorm Mini asks you to confirm, then Shelfmark checks the live location. Other-folder moves remain paused.' : 'Firestorm confirms the Trash move before Shelfmark updates this view. Moves to other folders are paused.' : stockLeapStatus.connected && !DEVELOPMENT_BUILD && !stockLeapStatus.nativeBridgeEnabled ? 'Stock LEAP moves are disabled in release builds. Launch the experimental Firestorm Mini bridge from Home.' : 'Connect Firestorm from Home and select the matching main-grid snapshot.' : 'Live Trash requires a Second Life main-grid snapshot.'}</small>
                         {moveFeedback?.itemId === selected.id && <div className={`move-feedback is-${moveFeedback.state}`} role={moveFeedback.state === 'error' ? 'alert' : 'status'}>
                           {moveFeedback.state === 'pending' ? <RefreshCw size={14} /> : moveFeedback.state === 'success' ? <CircleCheck size={14} /> : <CircleAlert size={14} />}
                           <span>{moveFeedback.message}</span>
@@ -2322,7 +2328,7 @@ function App() {
       >
         <div className="item-context-heading"><b title={itemContextMenu.item.name}>{itemContextMenu.item.name}</b><small title={itemContextMenu.item.path.join(' / ')}>{itemContextMenu.item.path.join(' / ') || 'Inventory root'}</small></div>
         <button type="button" role="menuitem" disabled={ordinaryFolderMovesPaused || !moveBridgeSupported || !stockLeapMoveReady || !itemContextMenu.item.parentFolderId || moveBusy} title={ordinaryFolderMovesPaused ? 'Temporarily paused: stock LEAP cannot confirm clipboard contents. Move this item in Firestorm.' : !moveBridgeSupported ? 'Live moves currently support Second Life main-grid snapshots.' : !stockLeapMoveReady ? 'Connect Firestorm from Home and select the matching snapshot first.' : 'Choose where this item should go.'} onClick={() => { const item = itemContextMenu.item; setItemContextMenu(null); void openMoveDialog(item); }}><FolderOpen size={15} /><span>Move to folder…</span></button>
-        <button type="button" role="menuitem" className="context-trash-action" disabled={!moveBridgeSupported || !stockLeapMoveReady || !itemContextMenu.item.parentFolderId || moveBusy} title={!moveBridgeSupported ? 'Live actions currently support Second Life main-grid snapshots.' : !stockLeapMoveReady ? 'Connect Firestorm from Home and select the matching snapshot first.' : 'Firestorm uses Delete for Trash; it does not paste the clipboard.'} onClick={() => { const item = itemContextMenu.item; setItemContextMenu(null); void requestItemMove(null, item); }}><X size={15} /><span>Move to Trash</span></button>
+        <button type="button" role="menuitem" className="context-trash-action" disabled={!moveBridgeSupported || !stockLeapMoveReady || !itemContextMenu.item.parentFolderId || moveBusy} title={!moveBridgeSupported ? 'Live actions currently support Second Life main-grid snapshots.' : !stockLeapMoveReady ? 'Connect Firestorm from Home and select the matching snapshot first.' : stockLeapStatus.nativeBridgeEnabled ? 'Firestorm Mini asks you to confirm this Trash move.' : 'Firestorm uses Delete for Trash; it does not paste the clipboard.'} onClick={() => { const item = itemContextMenu.item; setItemContextMenu(null); void requestItemMove(null, item); }}><X size={15} /><span>Move to Trash</span></button>
         <div className="item-context-divider" />
         <button type="button" role="menuitem" disabled={avatar.id === 'sample-avatar' || !isInventoryUuid(itemContextMenu.item.id) || viewerActionBusy} title="Select this item in Firestorm without changing inventory." onClick={() => { const item = itemContextMenu.item; setItemContextMenu(null); void selectInFirestorm(item.id); }}><ExternalLink size={15} /><span>Select in Firestorm</span></button>
         {ordinaryFolderMovesPaused && moveBridgeSupported && <small className="item-context-note">Moves to other folders are paused because stock LEAP cannot confirm the clipboard item. Trash uses Firestorm Delete.</small>}
@@ -2495,15 +2501,15 @@ function CollectionTools({ selected, collectionId, collections, mediaBusy, onRem
   return <div className="collection-toolbar"><span><Bookmark size={14} /> {collection?.itemIds.length ?? 0} saved items</span><div><label className="image-add-button"><ImagePlus size={14} /><span>Cover image</span><input disabled={mediaBusy} type="file" accept="image/jpeg,image/png,image/webp" onChange={onUpload} /></label><button className="quiet-button" onClick={onBrowse}><Plus size={14} /> Find items to add</button>{selected && <button className="quiet-button remove-saved-item" onClick={() => onRemove(collectionId, selected.id)}><X size={14} /> Remove selected</button>}</div></div>;
 }
 
-function HomePage({ desktop, avatar, viewerSnapshot, stockLeapStatus, stockLeapAvatarLabel, stockLeapBusy, viewerLaunchError, onStartStockLeap, onImport, onSelectViewerSnapshot, onNavigate }: {
+function HomePage({ desktop, avatar, viewerSnapshot, stockLeapStatus, stockLeapAvatarLabel, stockLeapBusy, viewerLaunchError, onStartStockLeap, onStartFirestormMini, windowsDesktop, onImport, onSelectViewerSnapshot, onNavigate }: {
   desktop: boolean; avatar: AvatarOption; viewerSnapshot: AvatarOption | null; stockLeapStatus: StockLeapStatus; stockLeapAvatarLabel: string | null; stockLeapBusy: boolean; viewerLaunchError: string;
-  onStartStockLeap: () => void; onImport: () => void; onSelectViewerSnapshot: (snapshot: AvatarOption) => void; onNavigate: (page: Page) => void;
+  onStartStockLeap: () => void; onStartFirestormMini: () => void; windowsDesktop: boolean; onImport: () => void; onSelectViewerSnapshot: (snapshot: AvatarOption) => void; onNavigate: (page: Page) => void;
 }) {
   const connected = desktop && stockLeapStatus.connected;
   const hasSnapshot = avatar.id !== 'sample-avatar';
   const matchesSnapshot = connected && supportsStockLeapMove(avatar.id) && stockLeapStatus.avatarId?.toLowerCase() === avatar.id.split('@')[0].toLowerCase();
   const moveApisReady = ['LLAgent', 'LLCommandDispatcher', 'LLInventory', 'LLWindow'].every((api) => stockLeapStatus.apiNames.includes(api));
-  const movesReady = Boolean(matchesSnapshot && moveApisReady && !stockLeapBusy);
+  const movesReady = Boolean(matchesSnapshot && moveApisReady && !stockLeapBusy && (stockLeapStatus.nativeBridgeEnabled || DEVELOPMENT_BUILD));
   const connectionError = !connected ? viewerLaunchError || (stockLeapStatus.phase === 'error' ? stockLeapStatus.message : '') : '';
   const primaryLabel = connected && stockLeapBusy ? 'Checking session…'
     : !connected ? stockLeapStatus.phase === 'starting' ? 'Starting Firestorm…' : connectionError ? 'Retry launch' : 'Launch Firestorm'
@@ -2519,7 +2525,7 @@ function HomePage({ desktop, avatar, viewerSnapshot, stockLeapStatus, stockLeapA
   const avatarInitial = activeAvatar.trim().charAt(0).toUpperCase() || 'S';
   const snapshotTime = avatar.snapshotAt ? relativeTime(avatar.snapshotAt) : 'Not imported yet';
   const moveStatus = stockLeapBusy && connected ? 'Checking viewer'
-    : movesReady ? 'Trash ready'
+    : movesReady ? stockLeapStatus.nativeBridgeEnabled ? 'Mini bridge ready' : 'Trash ready'
         : connected && !matchesSnapshot ? 'Snapshot needed' : connected ? 'Viewer check needed' : 'Starts with Firestorm';
   const launchDescription = connected && stockLeapBusy
     ? 'Shelfmark is reading the active avatar and move APIs. The session finishes connecting automatically.'
@@ -2542,7 +2548,7 @@ function HomePage({ desktop, avatar, viewerSnapshot, stockLeapStatus, stockLeapA
 
     <section className={`home-launcher ${connected ? 'is-connected' : ''}`} aria-label="Firestorm launcher">
       <div className="home-launcher-topline">
-        <span className={`home-connection-label ${connected ? 'online' : ''}`}><i />{connected && stockLeapBusy ? 'CHECKING SESSION' : connected ? 'FIRESTORM CONNECTED' : stockLeapStatus.phase === 'starting' ? 'STARTING FIRESTORM' : 'FIRESTORM SESSION'}</span>
+        <span className={`home-connection-label ${connected ? 'online' : ''}`}><i />{connected && stockLeapBusy ? 'CHECKING SESSION' : connected ? stockLeapStatus.nativeBridgeEnabled ? 'FIRESTORM MINI CONNECTED' : 'FIRESTORM CONNECTED' : stockLeapStatus.phase === 'starting' ? stockLeapStatus.nativeBridgeEnabled ? 'STARTING FIRESTORM MINI' : 'STARTING FIRESTORM' : 'FIRESTORM SESSION'}</span>
         <span className="home-local-chip"><FolderOpen size={12} /> LOCAL INVENTORY</span>
       </div>
       <div className="home-launcher-stage">
@@ -2553,12 +2559,26 @@ function HomePage({ desktop, avatar, viewerSnapshot, stockLeapStatus, stockLeapA
           <p>{launchDescription}</p>
         </div>
         <div className="launcher-action">
-          <button className="home-primary launcher-primary" onClick={primaryAction} disabled={primaryDisabled}>
-            <span className="launcher-play-icon">{connected ? <FolderOpen size={18} /> : <Play size={17} fill="currentColor" />}</span>
-            <span className="launcher-primary-copy"><b>{primaryLabel}</b><small>{connected && matchesSnapshot ? 'RETURN TO INVENTORY' : 'START YOUR SESSION'}</small></span>
-            <ArrowRight size={17} />
-          </button>
-          <small>{connected && matchesSnapshot ? 'Snapshot ready to open' : connected ? 'Choose or import the matching snapshot' : 'Connects to Shelfmark automatically'}</small>
+          {!connected && windowsDesktop ? <>
+            <div className="launcher-choice-grid" role="group" aria-label="Choose a Firestorm viewer">
+              <button className="home-primary launcher-choice" onClick={onStartStockLeap} disabled={stockLeapBusy || stockLeapStatus.phase === 'starting'} title="Connect to the regular Firestorm viewer. Live Trash moves are disabled for stock LEAP in packaged releases.">
+                <span className="launcher-choice-copy"><b>{primaryLabel === 'Retry launch' ? 'Retry Firestorm' : 'Stock Firestorm'}</b><small>STANDARD VIEWER</small></span>
+                <ArrowRight size={15} />
+              </button>
+              <button className="launcher-choice launcher-choice-mini" onClick={onStartFirestormMini} disabled={stockLeapBusy || stockLeapStatus.phase === 'starting'} title="Use the experimental Firestorm Mini viewer for confirmed single-item Trash moves. It has no sound or voice.">
+                <span className="launcher-choice-copy"><b>Firestorm Mini</b><small>PATCHED · EXPERIMENTAL</small></span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+            <small>Stock Firestorm connects your avatar. Mini adds confirmed, single-item Trash moves; sound and voice are not included.</small>
+          </> : <>
+            <button className="home-primary launcher-primary" onClick={primaryAction} disabled={primaryDisabled}>
+              <span className="launcher-play-icon">{connected ? <FolderOpen size={18} /> : <Play size={17} fill="currentColor" />}</span>
+              <span className="launcher-primary-copy"><b>{primaryLabel}</b><small>{connected && matchesSnapshot ? 'RETURN TO INVENTORY' : 'START YOUR SESSION'}</small></span>
+              <ArrowRight size={17} />
+            </button>
+            <small>{connected && matchesSnapshot ? 'Snapshot ready to open' : connected ? 'Choose or import the matching snapshot' : 'Connects to Shelfmark automatically'}</small>
+          </>}
         </div>
       </div>
       {connectionError && <div className="launcher-connection-error" role="alert"><CircleAlert size={16} /><div><b>Firestorm could not connect</b><p>{connectionError}</p></div></div>}
@@ -2608,7 +2628,7 @@ function SettingsPage({ desktop, avatar, summary, stockLeapStatus, stockLeapAvat
         <div className="settings-row stock-leap-row">
         <div className="setting-mark"><ExternalLink size={17} /></div>
         <div>
-          <b>Stock Firestorm connection</b>
+          <b>{stockLeapStatus.nativeBridgeEnabled ? 'Firestorm Mini connection' : 'Stock Firestorm connection'}</b>
           <p>{desktop ? `${stockLeapStatus.message} ${stockLeapStatus.connected ? 'Shelfmark reads the active avatar and keeps viewer actions tied to the matching snapshot.' : 'Launch Firestorm from Home to load the helper automatically. Settings keeps the advanced connection diagnostics.'}` : 'The hosted browser cannot connect to a local viewer. Use the desktop companion for live inventory actions.'}</p>
           {stockLeapStatus.avatarId && <small className="stock-leap-details">Active avatar: {stockLeapAvatarLabel && <b>{stockLeapAvatarLabel} · </b>}<code>{stockLeapStatus.avatarId}</code> · {stockLeapStatus.apiNames.length} APIs read</small>}
           {desktop && DEVELOPMENT_BUILD && <details className="stock-leap-paths stock-leap-advanced">
@@ -2662,7 +2682,7 @@ function CacheDiscoveryDialog({ avatarLabels, avatarNames, candidates, viewerRun
     <section ref={dialogRef} tabIndex={-1} className="cache-dialog" role="dialog" aria-modal="true" aria-labelledby="cache-dialog-title">
       <div className="cache-dialog-heading"><div><span className="eyebrow">LOCAL FIRESTORM FILES</span><h2 id="cache-dialog-title">Choose a snapshot.</h2></div><button ref={closeRef} className="icon-button" aria-label="Close cache chooser" onClick={onClose} disabled={importing}><X size={16} /></button></div>
       <p className="cache-dialog-intro">Choose the avatar snapshot to import. Shelfmark shows a saved local name or Firestorm’s cached avatar name when available. It reads only the matching name entry and file dates, and opens an inventory snapshot only after you confirm below.</p>
-      <div className="cache-detection-status" role="status"><span className={`cache-detection-dot ${viewerRunning === true ? 'is-running' : ''}`} /><span><b>{discoveryBusy ? 'Checking Firestorm' : viewerRunning === true ? 'Firestorm process detected' : viewerRunning === false ? 'No Firestorm process detected' : 'Viewer status unavailable'}</b><small>{cacheDirectories.length ? <>Checking {cacheDirectories.map((directory, index) => <span key={directory}>{index ? ' · ' : ''}<code>{directory}</code></span>)}</> : 'Checking the standard Firestorm cache location'}<span>Launch Firestorm from Home to connect the stock viewer. The browser preview stays read-only.</span></small></span><button className="cache-rescan-button" onClick={onRefresh} disabled={discoveryBusy || importing}><RefreshCw size={12} /> Rescan</button></div>
+      <div className="cache-detection-status" role="status"><span className={`cache-detection-dot ${viewerRunning === true ? 'is-running' : ''}`} /><span><b>{discoveryBusy ? 'Checking Firestorm' : viewerRunning === true ? 'Firestorm process detected' : viewerRunning === false ? 'No Firestorm process detected' : 'Viewer status unavailable'}</b><small>{cacheDirectories.length ? <>Checking {cacheDirectories.map((directory, index) => <span key={directory}>{index ? ' · ' : ''}<code>{directory}</code></span>)}</> : 'Checking the standard Firestorm cache location'}<span>Launch Firestorm or the patched Firestorm Mini build from Home to connect a viewer. The browser preview stays read-only.</span></small></span><button className="cache-rescan-button" onClick={onRefresh} disabled={discoveryBusy || importing}><RefreshCw size={12} /> Rescan</button></div>
       {error && <div className="cache-dialog-error" role="alert">{error}</div>}
       {importing && progress && <ImportProgressView progress={progress} cancellationPending={cancellationPending} />}
       {discoveryBusy ? <div className="cache-discovery-loading"><span className="spinner local-spinner" /> Checking Firestorm cache folders…</div> : candidates.length ? <>
@@ -2743,7 +2763,7 @@ function GuideDialog({ desktop, onClose, onImport }: { desktop: boolean; onClose
         <article><span className="guide-number">01</span><div><h3>{desktop ? 'Choose a Firestorm snapshot' : 'Explore the sample first'}</h3><p>{desktop ? 'Open Import Firestorm cache, choose a detected avatar snapshot (or browse to one), give it an optional local name, and confirm. Shelfmark reads the selected cache only after you confirm.' : 'The browser preview uses fictional inventory. It cannot read files from Firestorm; use the desktop app to import a local snapshot.'}</p></div></article>
         <article><span className="guide-number">02</span><div><h3>Search, or browse the folder tree</h3><p>Find items by name, path, description, or your tags. Open Folders to follow the cache hierarchy with breadcrumbs, then choose an item to inspect it. The desktop app can select a snapshot entry in the registered viewer when the matching avatar and grid are logged in. Use / or Ctrl/⌘ K to focus the active search.</p></div></article>
         <article><span className="guide-number">03</span><div><h3>Add your own context</h3><p>Add personal tags and notes, save items into collections, and choose reference photos or collection covers. Images stay in this app profile on this device; Shelfmark never uploads them.</p></div></article>
-        <article><span className="guide-number">04</span><div><h3>{desktop ? 'Send items to Trash on Windows' : 'Use the desktop app for live inventory'}</h3><p>{desktop ? 'On Windows, close Firestorm first, then launch it from Home and select the matching Second Life snapshot. Keep All Items open and clear the inventory search. Choose Move to Trash for one selected item; Shelfmark checks the new location. Close the viewer and refresh the saved snapshot afterward. Live Firestorm actions are not currently available on macOS or Linux.' : 'A browser cannot open Firestorm or read its cache. It stays on fictional sample data; use the installed desktop app to import a local snapshot. Live Firestorm actions are currently available on Windows only.'}</p></div></article>
+        <article><span className="guide-number">04</span><div><h3>{desktop ? 'Send items to Trash on Windows' : 'Use the desktop app for live inventory'}</h3><p>{desktop ? 'Install Firestorm Mini from its experimental GitHub release, then close all Firestorm windows. From Home, launch Firestorm Mini and choose its installed executable, then select the matching Second Life snapshot. Keep All Items open and clear the inventory search. Choose Move to Trash for one item and confirm it in Firestorm; Shelfmark checks the live location. This open build has no sound or voice. Close the viewer and refresh the saved snapshot afterward. Live Trash is not available on macOS or Linux.' : 'A browser cannot open Firestorm or read its cache. It stays on fictional sample data; use the installed desktop app to import a local snapshot. The experimental Firestorm Mini bridge is Windows-only.'}</p></div></article>
       </div>
       <div className="guide-note"><ShieldCheck size={16} /><p><b>Keep the snapshot in context:</b> “Recently added” uses a cached inventory timestamp, not purchase history. Candidate groups are clues only. A snapshot can be stale or incomplete. Refresh it after Firestorm saves changes.</p></div>
       <div className="guide-footer"><span>{desktop ? 'Local index · No SL password · Windows live Trash' : 'Fictional sample · No SL password · Browser read-only'}</span><div><button className="quiet-button" onClick={onClose}>Close guide</button>{desktop && <button className="primary-action" onClick={onImport}><FolderOpen size={14} /> Choose a cache</button>}</div></div>

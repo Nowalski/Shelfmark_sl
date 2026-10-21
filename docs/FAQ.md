@@ -2,13 +2,13 @@
 
 ## Does Shelfmark change my inventory?
 
-Importing and browsing are read-only. On Windows, you can explicitly send one selected item to Firestorm’s Trash through the matching live Firestorm session on the Second Life main grid. Shelfmark checks that the item moved before updating the local catalogue. It does not delete items permanently or make background changes.
+Importing and browsing are read-only. On Windows, the experimental Firestorm Mini viewer can send one selected item to Trash through a matching live viewer on the Second Life main grid. Firestorm asks you to confirm, and Shelfmark checks the live folder before updating the catalogue. Packaged releases need the [optional Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788); stock LEAP moves remain development-only. Items are not permanently deleted.
 
-Moves to ordinary folders are paused because Firestorm’s LEAP interface cannot reliably confirm the clipboard item. Make those moves in Firestorm.
+Moves to ordinary folders are paused. Do those in Firestorm.
 
 ## Is Trash available on macOS or Linux?
 
-Not at this time. The macOS and Linux desktop builds can import and browse local snapshots. Launching Firestorm through Shelfmark and live Trash actions are currently Windows-only.
+The macOS and Linux desktop builds can import and browse local snapshots. The experimental Firestorm Mini bridge and live Trash actions are Windows-only.
 
 ## Does “Keep safe” protect an item from being moved?
 

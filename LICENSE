@@ -6,6 +6,12 @@ in this repository and releases distributed under these terms from version
 0.1.1 onward (the “Software”). Earlier releases remain governed by the license
 included with those copies.
 
+This license does not apply to the Firestorm-derived viewer build or source
+patch in [integrations/firestorm-mini](integrations/firestorm-mini/) and its
+associated releases. Firestorm code and the Shelfmark patch are under
+LGPL-2.1-only; bundled third-party components retain their own notices and
+terms. See the integration's LICENSE file and release materials.
+
 You may download, install, run, inspect, and privately modify the Software for
 your own personal, non-commercial use. You may make private backup copies for
 that use.
