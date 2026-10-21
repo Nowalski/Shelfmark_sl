@@ -31,7 +31,7 @@ To move your personal setup to another device, use **Settings → Personal data 
 
 ## Move an item to Trash
 
-Live Firestorm control is Windows-only. The packaged app can connect to stock Firestorm and read the active avatar. To move items from a packaged release, install the optional [Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788). It uses a separate viewer channel so it can be installed alongside stock Firestorm. The open build has no FMOD sound or voice; stock LEAP move actions remain enabled only in development builds.
+Live Firestorm control is Windows-only. The packaged app can connect to stock Firestorm and read the active avatar. To move items from a packaged release, install the optional [Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788). It uses a separate viewer channel so it can be installed alongside stock Firestorm. The open build has no FMOD sound or voice; stock LEAP move actions remain enabled only in development builds. Its installer skips the AVX2 download prompt because Mini does not publish a separate AVX2 package.
 
 1. Install Firestorm Mini from the pre-release above, then close every Firestorm window.
 2. In Shelfmark Home, choose **Firestorm Mini** and select the installed `Firestorm.exe`.

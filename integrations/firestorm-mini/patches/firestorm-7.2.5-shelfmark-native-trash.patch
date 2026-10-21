@@ -143,3 +143,26 @@ index 0df0d66..26fcfda 100644
      <notification
          icon="alertmodal.tga"
          name="ConfirmListingCutOrDelete"
+
+diff --git a/indra/newview/installers/windows/installer_template.nsi b/indra/newview/installers/windows/installer_template.nsi
+index 5c5002a..5503b56 100644
+--- a/indra/newview/installers/windows/installer_template.nsi
++++ b/indra/newview/installers/windows/installer_template.nsi
+@@ -335,6 +335,8 @@ Function CheckCPUFlagsAVX2
+ FunctionEnd
+ 
+ Function CheckCPUFlagsAVX2_Prompt
++    ; Shelfmark Mini has no separate AVX2 download.
++    StrCmp "${DL_URL}" "<NO-URL>" NoAVX2Download
+     Push $1
+     Push $3
+     System::Call 'kernel32::IsProcessorFeaturePresent(i 40) i .r1'  ; 40 is PF_AVX2_INSTRUCTIONS_AVAILABLE
+@@ -353,6 +355,8 @@ Function CheckCPUFlagsAVX2_Prompt
+       Pop $3
+       Pop $1
+       Return
++  NoAVX2Download:
++      Return
+ FunctionEnd
+ 
+ # <FS:Ansariel> Optional start menu entry

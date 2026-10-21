@@ -2,7 +2,7 @@
 
 This folder contains a small patch for the Firestorm 7.2.5 source tree. It adds a confirmed, single-item move-to-Trash command that Shelfmark can send to a running patched viewer. Shelfmark then reads the live item location through LEAP before it reports success. “Firestorm Mini” is Shelfmark’s informal name for this optional build; it is not a separate Firestorm edition.
 
-The optional [Windows installer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788) is built from Firestorm’s open configuration, which omits FMOD sound and voice. It uses its own viewer channel and can be installed alongside stock Firestorm, though Shelfmark connects to only one running viewer at a time. For a full audio build, compile the source yourself with the dependencies and permissions required by Firestorm. The installer and source patch are experimental and are not maintained or endorsed by the Firestorm team.
+The optional [Windows installer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788) is built from Firestorm’s open configuration, which omits FMOD sound and voice. It uses its own viewer channel and can be installed alongside stock Firestorm, though Shelfmark connects to only one running viewer at a time. The installer skips Firestorm's AVX2 download prompt because Mini does not publish a separate AVX2 package. For a full audio build, compile the source yourself with the dependencies and permissions required by Firestorm. The installer and source patch are experimental and are not maintained or endorsed by the Firestorm team.
 
 ## Apply the patch
 

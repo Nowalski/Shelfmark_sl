@@ -76,10 +76,12 @@ jobs:
           git config core.autocrlf false
           git checkout-index --force -- \
             indra/newview/llappviewer.h \
+            indra/newview/installers/windows/installer_template.nsi \
             indra/newview/llviewerinventory.cpp \
             indra/newview/skins/default/xui/en/notifications.xml
           for file in \
             indra/newview/llappviewer.h \
+            indra/newview/installers/windows/installer_template.nsi \
             indra/newview/llviewerinventory.cpp \
             indra/newview/skins/default/xui/en/notifications.xml; do
             index_blob="$(git rev-parse "HEAD:$file")"
@@ -165,7 +167,7 @@ jobs:
 
           This experimental Windows viewer adds confirmed, single-item moves to Firestorm's Trash folder for Shelfmark. It targets the Second Life main grid. Firestorm still requires the user to confirm each move.
 
-          This installer uses Firestorm's `ReleaseFS_open` configuration. It does not include FMOD sound or voice. It is a standalone Firestorm-derived viewer and is not an official Firestorm release. Close other Firestorm processes before starting a Shelfmark connection.
+          This installer uses Firestorm's `ReleaseFS_open` configuration. It does not include FMOD sound or voice. It is a standalone Firestorm-derived viewer and is not an official Firestorm release. Close other Firestorm processes before starting a Shelfmark connection. The installer skips Firestorm's AVX2 download prompt because Mini does not publish a separate AVX2 package.
 
           The Firestorm source patch is provided under LGPL-2.1-only; see the included license and patch file. Shelfmark's desktop application has separate personal-use terms, which do not apply to the Firestorm viewer or patch. Bundled third-party components retain their own notices and terms in the installer.
 
