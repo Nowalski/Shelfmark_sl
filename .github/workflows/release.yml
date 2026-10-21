@@ -4,12 +4,20 @@ on:
   push:
     tags:
       - 'app-v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to build and publish
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   publish:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +35,8 @@ jobs:
             rust-target: ''
             tauri-args: ''
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,16 +87,16 @@ jobs:
       - name: Verify release tag matches app version
         shell: bash
         run: |
-          node -e 'const fs=require("fs"); const app=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); if (app.version !== tauri.version || process.env.GITHUB_REF_NAME !== `app-v${app.version}`) { console.error("Release tag and package/Tauri versions must match."); process.exit(1); }'
+          node -e 'const fs=require("fs"); const app=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); if (app.version !== tauri.version || process.env.RELEASE_TAG !== `app-v${app.version}`) { console.error("Release tag and package/Tauri versions must match."); process.exit(1); }'
 
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Shelfmark ${{ github.ref_name }}
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: Shelfmark ${{ env.RELEASE_TAG }}
           releaseBody: |
             Shelfmark desktop installers and signed updater metadata.
 
