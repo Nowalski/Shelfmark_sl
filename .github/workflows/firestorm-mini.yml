@@ -70,6 +70,22 @@ jobs:
         working-directory: firestorm
         run: |
           patch="$GITHUB_WORKSPACE/integrations/firestorm-mini/patches/firestorm-7.2.5-shelfmark-native-trash.patch"
+          git config core.autocrlf false
+          git checkout-index --force -- \
+            indra/newview/llappviewer.h \
+            indra/newview/llviewerinventory.cpp \
+            indra/newview/skins/default/xui/en/notifications.xml
+          for file in \
+            indra/newview/llappviewer.h \
+            indra/newview/llviewerinventory.cpp \
+            indra/newview/skins/default/xui/en/notifications.xml; do
+            index_blob="$(git rev-parse "HEAD:$file")"
+            worktree_blob="$(git hash-object "$file")"
+            if [ "$index_blob" != "$worktree_blob" ]; then
+              echo "Checkout content differs from the verified Firestorm source: $file" >&2
+              exit 1
+            fi
+          done
           git apply --check "$patch"
           git apply "$patch"
           git diff --check
