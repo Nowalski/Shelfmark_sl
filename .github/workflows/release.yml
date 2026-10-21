@@ -85,9 +85,17 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Verify release tag matches app version
+        id: release-version
         shell: bash
         run: |
-          node -e 'const fs=require("fs"); const app=JSON.parse(fs.readFileSync("package.json","utf8")); const tauri=JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")); if (app.version !== tauri.version || process.env.RELEASE_TAG !== `app-v${app.version}`) { console.error("Release tag and package/Tauri versions must match."); process.exit(1); }'
+          set -euo pipefail
+          app_version="$(node -p 'require("./package.json").version')"
+          tauri_version="$(node -p 'require("./src-tauri/tauri.conf.json").version')"
+          if [ "$app_version" != "$tauri_version" ] || [ "$RELEASE_TAG" != "app-v$app_version" ]; then
+            echo "Release tag and package/Tauri versions must match." >&2
+            exit 1
+          fi
+          echo "version=$app_version" >> "$GITHUB_OUTPUT"
 
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
@@ -96,7 +104,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: Shelfmark ${{ env.RELEASE_TAG }}
+          releaseName: Shelfmark ${{ steps.release-version.outputs.version }}
           releaseBody: |
             Shelfmark desktop installers and signed updater metadata.
 
