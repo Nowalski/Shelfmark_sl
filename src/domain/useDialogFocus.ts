@@ -8,10 +8,15 @@ export function useDialogFocus(
 ) {
   const latest = useRef({ onClose, canClose });
   latest.current = { onClose, canClose };
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
     if (!dialog) return;
+    // Remember the opener only when focus is still outside the dialog. A
+    // re-run of this effect (React StrictMode, or an autoFocus field) would
+    // otherwise record an element inside the dialog and lose the opener.
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (active && !dialog.contains(active)) previousFocusRef.current = active;
     (initialFocusRef.current ?? dialog).focus();
     const onKey = (event: KeyboardEvent) => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
@@ -37,6 +42,7 @@ export function useDialogFocus(
       document.removeEventListener('keydown', onKey);
       window.requestAnimationFrame(() => {
         if (dialog.isConnected) return;
+        const previousFocus = previousFocusRef.current;
         const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
         const remainingDialog = dialogs[dialogs.length - 1];
         if (previousFocus?.isConnected && (!remainingDialog || remainingDialog.contains(previousFocus))) previousFocus.focus({ preventScroll: true });

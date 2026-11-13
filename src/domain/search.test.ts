@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candidateReason, normalize, searchItems } from './search';
+import { candidateReason, matchingPathSegments, normalize, searchItems } from './search';
 import type { InventoryItem } from './types';
 
 const items: InventoryItem[] = [
@@ -47,5 +47,33 @@ describe('catalogue search', () => {
     const imported: InventoryItem = { ...items[0], possibleDuplicate: true };
     expect(candidateReason(imported)).toMatchObject({ label: 'Possible duplicate', confidence: 'Loose' });
     expect(candidateReason(imported)?.reason).toContain('do not prove matching contents');
+  });
+
+  it('matches words remembered from the name and the folder trail together', () => {
+    const hits = searchItems(items, 'wool winter');
+    expect(hits.map((hit) => hit.item.id)).toEqual(['1']);
+    expect(hits[0].score).toBeLessThan(1);
+  });
+
+  it('ranks single-field matches above matches spread across fields', () => {
+    const hits = searchItems(items, 'jacket north');
+    expect(hits.map((hit) => hit.item.id)).toEqual(['2', '1']);
+  });
+
+  it('does not treat a single unmatched term as a cross-field match', () => {
+    expect(searchItems(items, 'velvet')).toEqual([]);
+  });
+
+  it('returns every item for punctuation-only queries without crashing', () => {
+    expect(searchItems(items, ' — ')).toHaveLength(items.length);
+    expect(searchItems([], 'anything')).toEqual([]);
+  });
+
+  it('highlights folder segments that match any search term', () => {
+    const path = ['Clothing', 'Winter capsule', 'North Studio'];
+    expect([...matchingPathSegments(path, 'wool winter')]).toEqual(['Winter capsule']);
+    expect([...matchingPathSegments(path, 'NORTH clothing')]).toEqual(['Clothing', 'North Studio']);
+    expect(matchingPathSegments(path, '').size).toBe(0);
+    expect(matchingPathSegments([], 'winter').size).toBe(0);
   });
 });

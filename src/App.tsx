@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import {
   Archive, ArrowDownWideNarrow, ArrowRight, Bookmark, ChevronDown, CircleAlert, CircleCheck, CircleHelp, Clipboard, Download,
@@ -11,7 +11,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check, type Update } from '@tauri-apps/plugin-updater';
-import { candidateReason, searchItems } from './domain/search';
+import { candidateReason, matchingPathSegments, searchItems } from './domain/search';
 import { readAvatarLabels, saveAvatarLabel } from './domain/avatarLabels';
 import { collectionImageKey, itemImageKey, listLocalImages, readLocalImage, readLocalImages, removeLocalImage, replaceLocalImages, saveLocalImage } from './domain/mediaStore';
 import { classifyItemSafety, createFolderProtectionResolver, folderSafetyLabel, folderSafetyReasons } from './domain/folderProtection';
@@ -962,6 +962,21 @@ function App() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [itemContextMenu]);
+
+  useEffect(() => {
+    if (!kindMenu && !sortMenu && !avatarMenu && !collectionOpen) return;
+    // Popovers stay open until dismissed; close each one when a pointer press
+    // lands outside its own trigger and menu.
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (kindMenu && !target?.closest('.filter-wrap')) setKindMenu(false);
+      if (sortMenu && !target?.closest('.sort-wrap')) setSortMenu(false);
+      if (avatarMenu && !target?.closest('.avatar-switcher-wrap')) { setAvatarMenu(false); setAvatarLabelEditorOpen(false); }
+      if (collectionOpen && !target?.closest('.detail-actions')) setCollectionOpen(false);
+    };
+    document.addEventListener('pointerdown', dismissOutside);
+    return () => document.removeEventListener('pointerdown', dismissOutside);
+  }, [avatarMenu, collectionOpen, kindMenu, sortMenu]);
 
   const requestedKind = kind === 'Any type' ? null : kind;
   const remoteMatchesView = Boolean(remoteData
@@ -2039,6 +2054,18 @@ function App() {
     navigateToPage('find');
     pushToast(`Switched to ${snapshot.label}, matching the active Firestorm avatar.`);
   }
+  const browseCatalogue = () => { navigateToPage('find'); setQuery(''); setKind('Any type'); };
+  const emptyState: { title: string; body: string; action?: { label: string; run: () => void } } = remoteError
+    ? { title: 'Could not read this local index.', body: 'The index remains on this device. Try again, switch avatars, or import that snapshot again.', action: { label: 'Try again', run: () => setTagSearchRevision((revision) => revision + 1) } }
+    : page === 'review'
+      ? { title: `No ${candidateFilter === 'All clues' ? 'candidate matches' : CANDIDATE_LABELS[candidateFilter].toLowerCase()} found.`, body: 'A clean result means the cached names and item types did not match this clue.', action: candidateFilter === 'All clues' ? undefined : { label: 'Show all clues', run: () => setCandidateFilter('All clues') } }
+      : page === 'collections' && collectionView
+        ? { title: 'This collection is empty.', body: 'Find an item, then choose Save to collection in its details.', action: { label: 'Find items to add', run: browseCatalogue } }
+        : query.trim() || kind !== 'Any type'
+          ? { title: query.trim() ? 'Nothing found by that phrase.' : `No ${kind.toLowerCase()} items here.`, body: query.trim() ? 'Try a folder name, check the spelling, or remove the type filter.' : 'Try another item type.', action: { label: query.trim() && kind !== 'Any type' ? 'Clear search and filter' : query.trim() ? 'Clear search' : 'Show any type', run: () => { setQuery(''); setKind('Any type'); } } }
+          : page === 'new'
+            ? { title: 'Nothing added in the last 30 days.', body: 'Recently added uses cached inventory timestamps. Refresh or import a newer snapshot to see recent arrivals.', action: { label: 'Browse all items', run: browseCatalogue } }
+            : { title: 'Nothing in this view yet.', body: avatar.id === 'sample-avatar' ? 'Choose a sample item or import your local Firestorm cache.' : 'Try a broader search.', action: page === 'find' ? undefined : { label: 'Browse all items', run: browseCatalogue } };
   const selectedCandidate = selected ? candidateReason(selected) : null;
   const avatarMonogram = avatar.id === 'sample-avatar'
     ? 'S'
@@ -2053,7 +2080,7 @@ function App() {
         </div>
 
         <div className="avatar-switcher-wrap">
-          <button className="avatar-switcher" onClick={() => { if (avatarMenu) setAvatarLabelEditorOpen(false); setAvatarMenu(!avatarMenu); }} aria-expanded={avatarMenu}>
+          <button className="avatar-switcher" onClick={() => { if (avatarMenu) setAvatarLabelEditorOpen(false); setAvatarMenu(!avatarMenu); }} aria-expanded={avatarMenu} aria-label={`Avatar: ${avatar.label}. Switch avatar`}>
             <span className="avatar-monogram">{avatarMonogram}</span>
             <span className="avatar-label"><b>{avatar.label}</b><small>{avatar.id === 'sample-avatar' ? 'Sample catalogue' : 'Local Firestorm snapshot'}</small></span>
             <ChevronDown size={15} />
@@ -2061,7 +2088,7 @@ function App() {
           {avatarMenu && <div className="avatar-menu popover">
             <div className="popover-label">LOCAL AVATARS</div>
             <button className={`avatar-choice ${avatar.id === 'sample-avatar' ? 'selected' : ''}`} onClick={() => { setAvatar({ id: 'sample-avatar', label: 'Sample avatar', itemCount: sampleItems.length, emptyFolderCount: 1 }); setSelectedFolderId(null); setFolderSearch(''); setAvatarMenu(false); setAvatarLabelEditorOpen(false); }}>
-              <span>Sample avatar</span><small>32 example items</small>
+              <span>Sample avatar</span><small>{sampleItems.length} example items</small>
             </button>
             {avatars.map((option) => <button key={option.id} className={`avatar-choice ${avatar.id === option.id ? 'selected' : ''}`} onClick={() => { setAvatar(option); setSelectedFolderId(null); setFolderSearch(''); setAvatarMenu(false); setAvatarLabelEditorOpen(false); }}>
               <span>{option.label}</span><small>{option.itemCount.toLocaleString()} indexed items</small>
@@ -2092,7 +2119,7 @@ function App() {
           </nav>
 
           <div className="sidebar-rule" />
-          <div className="nav-caption saved-caption">SAVED SEARCHES <button title="Save current search" onClick={() => setSaveSearchOpen(true)}><Plus size={15} /></button></div>
+          <div className="nav-caption saved-caption">SAVED SEARCHES <button title="Save current search" aria-label="Save current search" onClick={() => setSaveSearchOpen(true)}><Plus size={15} /></button></div>
           <div className="saved-search-list">
             {prefs.savedSearches.map((saved, index) => <button className="saved-search" key={`${saved.label}-${index}`} onClick={() => { const targetPage = saved.page === 'new' ? 'new' : 'find'; setQuery(saved.query); setKind(saved.kind ?? 'Any type'); navigateToPage(targetPage); }}>
               <Bookmark size={14} /><span>{saved.label}</span>
@@ -2146,10 +2173,10 @@ function App() {
               {page === 'empty-folders' && <div className="review-banner empty-folder-banner"><FolderOpen size={16} /><span>A partial cache can make folders look empty. Review each path in Firestorm before making changes; this view never deletes or moves anything.</span></div>}
 
               {page !== 'collections' && page !== 'review' && page !== 'folders' && page !== 'empty-folders' && <section className="search-row" aria-label="Search inventory">
-                  <div className="search-input-wrap"><Search size={19} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search names, folders, notes or your tags" aria-label="Search inventory names, folders, notes or tags" /><kbd>{searchShortcut}</kbd>{query && <button className="clear-search" aria-label="Clear search" onClick={() => setQuery('')}><X size={15} /></button>}</div>
+                  <div className="search-input-wrap"><Search size={19} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search names, descriptions, folders or your tags" aria-label="Search inventory names, descriptions, folders or tags" /><kbd>{searchShortcut}</kbd>{query && <button className="clear-search" aria-label="Clear search" onClick={() => setQuery('')}><X size={15} /></button>}</div>
                 <div className="filter-wrap">
-                  <button className={`filter-button ${kind !== 'Any type' ? 'filter-active' : ''}`} onClick={() => setKindMenu(!kindMenu)} aria-expanded={kindMenu}><span>{kind}</span><ChevronDown size={14} /></button>
-                  {kindMenu && <div className="kind-menu popover">{KIND_OPTIONS.map((option) => <button key={option} className={kind === option ? 'chosen' : ''} onClick={() => { setKind(option); setKindMenu(false); }}>{option}</button>)}</div>}
+                  <button className={`filter-button ${kind !== 'Any type' ? 'filter-active' : ''}`} onClick={() => setKindMenu(!kindMenu)} aria-expanded={kindMenu} aria-haspopup="menu" aria-label={`Item type: ${kind}`}><span>{kind}</span><ChevronDown size={14} /></button>
+                  {kindMenu && <div className="kind-menu popover" role="menu" aria-label="Filter by item type">{KIND_OPTIONS.map((option) => <button key={option} role="menuitemradio" aria-checked={kind === option} className={kind === option ? 'chosen' : ''} onClick={() => { setKind(option); setKindMenu(false); }}>{option}</button>)}</div>}
                 </div>
                 <button className="save-search-button" onClick={() => setSaveSearchOpen(true)}><Bookmark size={15} /><span>Save search</span></button>
               </section>}
@@ -2216,20 +2243,20 @@ function App() {
                   onLoadMore={() => void loadMoreEmptyFolders()}
                   onOpenFolder={(id) => { setPage('folders'); setSelectedFolderId(id); setFolderSearch(''); setSelectedId(''); setMobileDetailOpen(false); }}
                 /> : <div className="results-panel">
-                  <div className="results-head"><div><span className="section-kicker">{page === 'review' ? 'CANDIDATE MATCHES' : page === 'new' ? 'LATEST DATED ITEMS' : page === 'collections' ? 'SAVED ITEMS' : 'MATCHING ITEMS'}</span><small>{avatar.id === 'sample-avatar' ? `Sample · ${visibleItems.length} shown` : `Snapshot · ${visibleItems.length} shown${remoteMatchesView && remoteData?.hasMore ? ' · more available' : ''}`}</small></div>{!(page === 'collections' && collectionView) && <div className="sort-wrap"><button className="sort-button" aria-expanded={sortMenu} onClick={() => setSortMenu(!sortMenu)}><ArrowDownWideNarrow size={14} /> {sortMode}<ChevronDown size={12} /></button>{sortMenu && <div className="sort-menu popover" role="menu" aria-label="Sort results">{SORT_MODES.map((mode) => <button key={mode} role="menuitemradio" aria-checked={sortMode === mode} className={sortMode === mode ? 'chosen' : ''} onClick={() => { setSortMode(mode); setSortMenu(false); }}>{mode}</button>)}</div>}</div>}</div>
-                  {remoteViewLoading ? <div className="empty-results loading-results"><span className="spinner local-spinner" /><b>{remoteData?.avatarId === avatar.id ? 'Searching this local snapshot…' : 'Opening this local snapshot…'}</b><p>Results stay on this device and separate from the other avatars in Shelfmark.</p></div> : visibleItems.length ? <div className="item-table" role="listbox" aria-label="Inventory results">
-                    <div className="table-labels"><span>ITEM</span><span>FOLDER TRAIL</span><span>IN CACHE</span></div>
+                  <div className="results-head"><div><span className="section-kicker">{page === 'review' ? 'CANDIDATE MATCHES' : page === 'new' ? 'LATEST DATED ITEMS' : page === 'collections' ? 'SAVED ITEMS' : 'MATCHING ITEMS'}</span><small>{avatar.id === 'sample-avatar' ? `Sample · ${visibleItems.length} shown` : `Snapshot · ${visibleItems.length} shown${remoteMatchesView && remoteData?.hasMore ? ' · more available' : ''}`}</small></div>{!(page === 'collections' && collectionView) && <div className="sort-wrap"><button className="sort-button" aria-expanded={sortMenu} aria-haspopup="menu" aria-label={`Sort results: ${sortMode}`} onClick={() => setSortMenu(!sortMenu)}><ArrowDownWideNarrow size={14} /> {sortMode}<ChevronDown size={12} /></button>{sortMenu && <div className="sort-menu popover" role="menu" aria-label="Sort results">{SORT_MODES.map((mode) => <button key={mode} role="menuitemradio" aria-checked={sortMode === mode} className={sortMode === mode ? 'chosen' : ''} onClick={() => { setSortMode(mode); setSortMenu(false); }}>{mode}</button>)}</div>}</div>}</div>
+                  {remoteViewLoading ? <div className="empty-results loading-results"><span className="spinner local-spinner" /><b>{remoteData?.avatarId === avatar.id ? 'Searching this local snapshot…' : 'Opening this local snapshot…'}</b><p>Results stay on this device and separate from the other avatars in Shelfmark.</p></div> : visibleItems.length ? <div className="item-table" role="listbox" aria-label="Inventory results" onKeyDown={moveListboxFocus}>
+                    <div className="table-labels" aria-hidden="true"><span>ITEM</span><span>FOLDER TRAIL</span><span>IN CACHE</span></div>
                   {visibleItems.map((item) => {
                     const safety = itemSafetyById.get(item.id)!;
                     return <ItemRow key={item.id} item={item} selected={selected?.id === item.id} query={query} page={page} protectedItem={safety.isProtected} protectionLabel={safety.reasons.map((reason) => reason.label).join(' · ')} onSelect={selectInventoryItem} onContextMenu={desktop ? openItemContextMenu : undefined} />;
                   })}
-                  </div> : <div className="empty-results"><div className="empty-mark"><Search size={20} /></div><b>{remoteError ? 'Could not read this local index.' : page === 'review' ? `No ${candidateFilter === 'All clues' ? 'candidate matches' : CANDIDATE_LABELS[candidateFilter].toLowerCase()} found.` : query ? 'Nothing found by that phrase.' : 'Nothing in this view yet.'}</b><p>{remoteError ? 'The index remains on this device. Try switching avatars or importing that snapshot again.' : page === 'review' ? 'A clean result means the cached names and item types did not match this clue.' : query ? 'Try a folder name or remove a filter.' : avatar.id === 'sample-avatar' ? 'Choose a sample item or import your local Firestorm cache.' : 'Try a broader search.'}</p><button onClick={() => { setQuery(''); setKind('Any type'); if (page === 'review') setCandidateFilter('All clues'); else setPage('find'); }}>Clear filters</button></div>}
+                  </div> : <div className="empty-results" role="status"><div className="empty-mark">{remoteError ? <CloudOff size={20} /> : <Search size={20} />}</div><b>{emptyState.title}</b><p>{emptyState.body}</p>{emptyState.action && <button onClick={emptyState.action.run}>{emptyState.action.label}</button>}</div>}
                   {remoteError && visibleItems.length > 0 && <div className="folder-feedback is-error" role="alert">Could not load more results. Your loaded results are still available.</div>}
                   {avatar.id !== 'sample-avatar' && remoteMatchesView && remoteData?.hasMore && <div className="load-more-row"><span>{visibleItems.length.toLocaleString()} loaded · more results available</span><button className="quiet-button" onClick={() => void loadMoreInventory()} disabled={remotePageLoading}>{remotePageLoading ? 'Loading next 100…' : remoteError ? 'Retry next page' : 'Load next 100 items'}</button></div>}
                 </div>}
 
                 {mobileDetailOpen && <div className="mobile-detail-scrim" aria-hidden="true" onClick={closeMobileDetail} />}
-                {page !== 'empty-folders' && <aside className={`detail-panel ${mobileDetailOpen ? 'mobile-detail-open' : ''}`} role={mobileDetailOpen ? 'dialog' : undefined} aria-label="Selected inventory item" aria-labelledby="detail-item-title" aria-modal={mobileDetailOpen || undefined} onKeyDown={(event) => {
+                {page !== 'empty-folders' && <aside className={`detail-panel ${mobileDetailOpen ? 'mobile-detail-open' : ''}`} role={mobileDetailOpen ? 'dialog' : undefined} aria-label="Selected inventory item" aria-labelledby={selected ? 'detail-item-title' : undefined} aria-modal={mobileDetailOpen || undefined} onKeyDown={(event) => {
                   if (!mobileDetailOpen || event.key !== 'Tab') return;
                   const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')).filter((element) => element.getClientRects().length > 0);
                   if (!focusable.length) { event.preventDefault(); return; }
@@ -2238,7 +2265,7 @@ function App() {
                   else if (!event.shiftKey && document.activeElement === lastFocusable) { event.preventDefault(); focusable[0].focus(); }
                 }}>
                   {selected ? <>
-                    <div className="detail-topline"><span>ITEM DETAILS</span><div><button ref={mobileDetailCloseRef} className="mobile-detail-close icon-button" aria-label="Close item details" onClick={closeMobileDetail}><X size={15} /></button><button className="copy-path" onClick={() => void copyFolderTrail(selected.path)} title="Copy folder trail"><Clipboard size={14} /></button></div></div>
+                    <div className="detail-topline"><span>ITEM DETAILS</span><div><button ref={mobileDetailCloseRef} className="mobile-detail-close icon-button" aria-label="Close item details" onClick={closeMobileDetail}><X size={15} /></button><button className="copy-path" onClick={() => void copyFolderTrail(selected.path)} title="Copy folder trail" aria-label="Copy folder trail"><Clipboard size={14} /></button></div></div>
                     <div className="detail-title-block"><div className="item-glyph"><ItemIcon kind={selected.kind} /></div><div><h2 id="detail-item-title">{selected.name}</h2><span className="kind-label">{selected.kind}</span>{selected.isLink && <span className="link-label">Inventory link</span>}{selected.isFavorite && <span className="favorite-label"><Star size={11} fill="currentColor" /> Firestorm favorite</span>}</div></div>
 
                     <div className="detail-actions">
@@ -2312,7 +2339,13 @@ function App() {
         </div>
       </main>
 
-      {saveSearchOpen && <div className="modal-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setSaveSearchOpen(false); }}><form className="modal" onSubmit={(event) => { event.preventDefault(); saveSearch(); }}><div className="modal-top"><div><span className="eyebrow">KEEP A TRAIL</span><h2>Save this search</h2></div><button type="button" className="icon-button" onClick={() => setSaveSearchOpen(false)}><X size={17} /></button></div><p>Your search stays on this device and belongs to this avatar’s local catalogue.</p><label className="field-label" htmlFor="saved-search-name">Search name</label><input id="saved-search-name" autoFocus maxLength={80} value={savedSearchName} onChange={(event) => setSavedSearchName(event.target.value)} placeholder="e.g. Winter coats"/><div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setSaveSearchOpen(false)}>Cancel</button><button type="submit" className="primary-action" disabled={!savedSearchName.trim()}>Save search</button></div></form></div>}
+      {saveSearchOpen && <FormDialog titleId="save-search-title" eyebrow="KEEP A TRAIL" title="Save this search" onClose={() => setSaveSearchOpen(false)} onSubmit={saveSearch}>
+        <p>Your search stays on this device and belongs to this avatar’s local catalogue.</p>
+        <div className="saved-search-preview" aria-label="Search to save"><Search size={13} /><span>{query.trim() ? `“${query.trim()}”` : 'All items'}{kind !== 'Any type' ? ` · ${kind}` : ''}{page === 'new' ? ' · Recently added' : ''}</span></div>
+        <label className="field-label" htmlFor="saved-search-name">Search name</label>
+        <input id="saved-search-name" maxLength={80} value={savedSearchName} onChange={(event) => setSavedSearchName(event.target.value)} placeholder="e.g. Winter coats"/>
+        <div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setSaveSearchOpen(false)}>Cancel</button><button type="submit" className="primary-action" disabled={!savedSearchName.trim()}>Save search</button></div>
+      </FormDialog>}
 
       {desktop && itemContextMenu && <div
         ref={itemContextMenuRef}
@@ -2348,7 +2381,12 @@ function App() {
         <div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setMoveDialogOpen(false)} disabled={moveBusy}>Close</button><button type="button" className="primary-action" disabled title="Ordinary-folder moves are paused until stock Firestorm can confirm clipboard contents.">Unavailable</button></div>
       </section></div>}
 
-      {newCollectionDialogOpen && <div className="modal-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setNewCollectionDialogOpen(false); }}><form className="modal" onSubmit={(event) => { event.preventDefault(); createCollection(false); }}><div className="modal-top"><div><span className="eyebrow">KEEP YOUR FINDS TOGETHER</span><h2>New collection</h2></div><button type="button" className="icon-button" aria-label="Close" onClick={() => setNewCollectionDialogOpen(false)}><X size={17} /></button></div><p>Collections and outfit references stay on this device.</p><label className="field-label" htmlFor="collection-name">Collection name</label><input id="collection-name" autoFocus maxLength={100} value={collectionDraft} onChange={(event) => setCollectionDraft(event.target.value)} placeholder="e.g. Everyday layers"/><div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setNewCollectionDialogOpen(false)}>Cancel</button><button className="primary-action" type="submit" disabled={!collectionDraft.trim() || prefs.collections.length >= 1000}>Create collection</button></div></form></div>}
+      {newCollectionDialogOpen && <FormDialog titleId="new-collection-title" eyebrow="KEEP YOUR FINDS TOGETHER" title="New collection" onClose={() => setNewCollectionDialogOpen(false)} onSubmit={() => createCollection(false)}>
+        <p>Collections and outfit references stay on this device.</p>
+        <label className="field-label" htmlFor="collection-name">Collection name</label>
+        <input id="collection-name" maxLength={100} value={collectionDraft} onChange={(event) => setCollectionDraft(event.target.value)} placeholder="e.g. Everyday layers"/>
+        <div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setNewCollectionDialogOpen(false)}>Cancel</button><button className="primary-action" type="submit" disabled={!collectionDraft.trim() || prefs.collections.length >= 1000}>Create collection</button></div>
+      </FormDialog>}
 
       {cacheDialogOpen && <CacheDiscoveryDialog avatarLabels={avatarLabels} avatarNames={firestormAvatarNames} candidates={cacheCandidates} viewerRunning={firestormRunning} cacheDirectories={firestormCacheDirectories} selectedCandidate={selectedCacheCandidate} discoveryBusy={cacheDiscoveryBusy} importing={busy} progress={importProgress} cancellationPending={importCancellationPending} error={cacheDialogError} onClose={closeCacheChooser} onSelect={(candidate) => { selectedCacheCandidateRef.current = candidate; setSelectedCacheCandidate(candidate); }} onImportSelected={(candidate, label) => void importCachePath(candidate.path, label)} onCancelImport={() => void cancelInventoryImport()} onBrowse={() => void browseForCache()} onRefresh={() => void refreshCacheDiscovery()} />}
       {helpOpen && <GuideDialog desktop={desktop} onClose={() => { setHelpOpen(false); window.requestAnimationFrame(() => helpTriggerRef.current?.focus()); }} onImport={() => { setHelpOpen(false); void importCache(); }} />}
@@ -2358,6 +2396,37 @@ function App() {
       {toast && <div className="toast-message" role="status">{toast}</div>}
     </div>
   );
+}
+
+function FormDialog({ titleId, eyebrow, title, onClose, onSubmit, children }: {
+  titleId: string; eyebrow: string; title: string; onClose: () => void; onSubmit: () => void; children: React.ReactNode;
+}) {
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const initialFocusRef = useRef<HTMLElement | null>(null);
+  // Start in the first field; useDialogFocus remembers the opener and returns focus to it on close.
+  useLayoutEffect(() => { initialFocusRef.current = dialogRef.current?.querySelector<HTMLElement>('input, textarea') ?? closeRef.current; }, []);
+  useDialogFocus(dialogRef, initialFocusRef, onClose, true);
+  return <div className="modal-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <form ref={dialogRef} tabIndex={-1} className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+      <div className="modal-top"><div><span className="eyebrow">{eyebrow}</span><h2 id={titleId}>{title}</h2></div><button ref={closeRef} type="button" className="icon-button" aria-label="Close" onClick={onClose}><X size={17} /></button></div>
+      {children}
+    </form>
+  </div>;
+}
+
+// Result lists use listbox semantics, so arrow keys, Home and End move between rows.
+function moveListboxFocus(event: ReactKeyboardEvent<HTMLDivElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+  const rows = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('.item-row'));
+  if (!rows.length) return;
+  const current = rows.indexOf(document.activeElement as HTMLButtonElement);
+  const next = event.key === 'Home' ? 0
+    : event.key === 'End' ? rows.length - 1
+      : event.key === 'ArrowDown' ? Math.min(rows.length - 1, current + 1)
+        : Math.max(0, current - 1);
+  event.preventDefault();
+  rows[next].focus();
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -2374,11 +2443,12 @@ function ItemIcon({ kind }: { kind: ItemKind }) {
 
 const ItemRow = memo(function ItemRow({ item, selected, query, page, onSelect, onContextMenu, protectedItem = false, protectionLabel = '' }: { item: InventoryItem; selected: boolean; query: string; page: Page; onSelect: (item: InventoryItem) => void; onContextMenu?: (item: InventoryItem, event: ReactMouseEvent<HTMLButtonElement>) => void; protectedItem?: boolean; protectionLabel?: string }) {
   const reason = candidateReason(item);
-  const matchingPath = query && reason ? item.path.find((part) => part.toLowerCase().includes(query.toLowerCase())) : undefined;
+  const visiblePath = item.path.slice(-2);
+  const matchingPath = query ? matchingPathSegments(visiblePath, query) : null;
   return <button role="option" aria-selected={selected} className={`item-row ${selected ? 'row-selected' : ''}`} onClick={() => onSelect(item)} onContextMenu={(event) => onContextMenu?.(item, event)}>
     <span className={`row-kind kind-${item.kind.toLowerCase()}`}><ItemIcon kind={item.kind} /></span>
     <span className="row-main"><span className="row-title"><b>{item.name}</b>{protectedItem && <span className="row-safety-mark" role="img" aria-label={`Kept safe: ${protectionLabel || 'local review exclusion'}`} title={protectionLabel || 'Local review exclusion'}><ShieldCheck size={13} aria-hidden="true" /></span>}</span><small>{item.creatorId ? `Creator · ${item.creatorId}` : item.kind}</small></span>
-    <span className="row-path">{item.path.slice(-2).map((part, index) => <span key={`${part}-${index}`} className={part === matchingPath ? 'match-crumb' : ''}>{part}</span>)}</span>
+    <span className="row-path">{visiblePath.map((part, index) => <span key={`${part}-${index}`} className={matchingPath?.has(part) ? 'match-crumb' : ''}>{part}</span>)}</span>
     <span className="row-date">{formatDate(item.createdAt)}</span>
     {page === 'review' && reason && <span className={`row-confidence confidence-${reason.confidence.toLowerCase()}`}>{reason.confidence}</span>}
   </button>;
@@ -2462,8 +2532,8 @@ function FolderBrowser({
         <div className="folder-items-heading"><div><span className="section-kicker">ITEMS IN THIS FOLDER</span><small>{currentFolderId ? breadcrumbs[breadcrumbs.length - 1]?.name : 'Inventory root'}</small></div><div className="folder-items-heading-actions"><span>{totalItems.toLocaleString()}</span>{currentFolderId && canSelectInFirestorm && isInventoryUuid(currentFolderId) && <button className="icon-button folder-locate-button" aria-label="Select this folder in Firestorm" title="Select this folder in Firestorm. This does not move or change inventory." disabled={viewerActionBusy} onClick={() => onSelectInFirestorm(currentFolderId, 'folder')}><ExternalLink size={15} /></button>}{currentFolderId && <button className={`keep-safe-button ${currentFolderIsProtected ? 'is-protected' : ''}`} aria-pressed={currentFolderIsProtected} disabled={currentFolderIsProtected && !currentFolderIsProtectedDirectly} title={currentFolderSafetyReason || 'Local exclusion for future review; this does not move inventory'} onClick={() => onToggleProtectedFolder(currentFolderId)}>{currentFolderIsProtectedDirectly ? <ShieldCheck size={13} /> : currentFolderIsProtected ? <ShieldCheck size={13} /> : <Shield size={13} />}{currentFolderIsProtectedDirectly ? 'Kept safe' : currentFolderSafety?.systemFolder ? 'System folder' : currentFolderIsProtected ? 'Protected by parent' : 'Keep folder safe'}</button>}</div></div>
         {itemsError && items.length > 0 && <div className="folder-feedback is-error" role="alert">Could not load more items. Your loaded items are still available.</div>}
         {loadingItems ? <div className="folder-feedback"><span className="spinner local-spinner" /><span>Loading items in this folder…</span></div> : itemsError && !items.length ? <div className="folder-feedback is-error" role="alert"><span>Could not read the selected folder. {itemsError}</span><button className="quiet-button" onClick={onRetry}>Try again</button></div> : items.length ? <>
-          <div className="table-labels folder-table-labels"><span>ITEM</span><span>FOLDER TRAIL</span><span>IN CACHE</span></div>
-          <div className="item-table" role="listbox" aria-label="Items in the selected folder">{items.map((item) => { const safety = itemSafetyById.get(item.id)!; return <ItemRow key={item.id} item={item} selected={selectedItemId === item.id} query="" page="folders" protectedItem={safety.isProtected} protectionLabel={safety.reasons.map((reason) => reason.label).join(' · ')} onSelect={onSelectItem} onContextMenu={onContextMenuItem} />; })}</div>
+          <div className="table-labels folder-table-labels" aria-hidden="true"><span>ITEM</span><span>FOLDER TRAIL</span><span>IN CACHE</span></div>
+          <div className="item-table" role="listbox" aria-label="Items in the selected folder" onKeyDown={moveListboxFocus}>{items.map((item) => { const safety = itemSafetyById.get(item.id)!; return <ItemRow key={item.id} item={item} selected={selectedItemId === item.id} query="" page="folders" protectedItem={safety.isProtected} protectionLabel={safety.reasons.map((reason) => reason.label).join(' · ')} onSelect={onSelectItem} onContextMenu={onContextMenuItem} />; })}</div>
           {hasMore && <div className="load-more-row"><span>{items.length.toLocaleString()} of {totalItems.toLocaleString()} items</span><button className="quiet-button" onClick={onLoadMore} disabled={loadingMore}>{loadingMore ? 'Loading…' : itemsError ? 'Retry next page' : 'Load next 100'}</button></div>}
         </> : <div className="folder-feedback">This folder has no direct items. Open a subfolder above or choose another folder.</div>}
       </section>

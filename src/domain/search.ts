@@ -66,8 +66,31 @@ export function searchItems(
     }
     if (!terms.length) return [{ item, match: 'Name' as const, score: 0 }];
     const hit = fields.find(([, text]) => fuzzyContains(text, terms));
-    return hit ? [{ item, match: hit[0], score: hit[2] }] : [];
+    if (hit) return [{ item, match: hit[0], score: hit[2] }];
+    // People often remember one word from the name and another from the
+    // folder trail ("wool winter"). Accept a match spread across fields, but
+    // rank it below any single-field match.
+    if (terms.length > 1 && fuzzyContains(fields.map(([, text]) => text).join(' '), terms)) {
+      const firstField = fields.find(([, text]) => terms.some((term) => fuzzyContains(text, [term])));
+      return [{ item, match: firstField?.[0] ?? 'Name', score: 0.5 }];
+    }
+    return [];
   }).sort((a, b) => b.score - a.score || a.item.name.localeCompare(b.item.name));
+}
+
+/**
+ * Returns the folder-trail segments that contain at least one search term, so
+ * result rows can highlight the folder a person remembered.
+ */
+export function matchingPathSegments(path: readonly string[], query: string): Set<string> {
+  const terms = normalize(query).split(' ').filter(Boolean);
+  const matches = new Set<string>();
+  if (!terms.length) return matches;
+  for (const segment of path) {
+    const text = normalize(segment);
+    if (terms.some((term) => fuzzyContains(text, [term]))) matches.add(segment);
+  }
+  return matches;
 }
 
 export function candidateReason(item: InventoryItem): { label: string; reason: string; confidence: 'Loose' | 'Close' } | null {
