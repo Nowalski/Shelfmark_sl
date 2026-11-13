@@ -139,6 +139,8 @@ pub fn parse_cache_with_progress(
 
     let mut categories = Vec::with_capacity(category_values.len());
     let mut owners = HashSet::new();
+    let mut seen_categories = HashSet::new();
+    let mut seen_items = HashSet::new();
     report("reading_folders", 0, Some(category_values.len() as u64));
     for (index, record) in category_values.iter().enumerate() {
         if index % 512 == 0 {
@@ -153,11 +155,18 @@ pub fn parse_cache_with_progress(
         let id = field_string(map, "folder_id")
             .or_else(|| field_string(map, "category_id"))
             .or_else(|| field_string(map, "cat_id"));
-        let Some(id) = id.filter(|value| !is_null_uuid(value)) else {
+        let Some(id) = id.map(normalize_id).filter(|value| !is_null_uuid(value)) else {
             continue;
         };
-        let parent_id = field_string(map, "parent_id").unwrap_or_else(null_uuid);
-        if let Some(owner) = field_string(map, "owner_id") {
+        // A duplicated record would violate the catalogue's primary key and
+        // abort the whole import; keep the first copy.
+        if !seen_categories.insert(id.clone()) {
+            continue;
+        }
+        let parent_id = field_string(map, "parent_id")
+            .map(normalize_id)
+            .unwrap_or_else(null_uuid);
+        if let Some(owner) = field_string(map, "owner_id").map(normalize_id) {
             if !is_null_uuid(&owner) {
                 owners.insert(owner.to_ascii_lowercase());
             }
@@ -182,12 +191,23 @@ pub fn parse_cache_with_progress(
             );
         }
         let Some(map) = as_map(record) else { continue };
-        let Some(id) = field_string(map, "item_id").filter(|value| !is_null_uuid(value)) else {
+        let Some(id) = field_string(map, "item_id")
+            .map(normalize_id)
+            .filter(|value| !is_null_uuid(value))
+        else {
             continue;
         };
-        let parent_id = field_string(map, "parent_id").unwrap_or_else(null_uuid);
+        if !seen_items.insert(id.clone()) {
+            continue;
+        }
+        let parent_id = field_string(map, "parent_id")
+            .map(normalize_id)
+            .unwrap_or_else(null_uuid);
         let permissions = map.get("permissions").and_then(as_map);
-        if let Some(owner) = permissions.and_then(|p| field_string(p, "owner_id")) {
+        if let Some(owner) = permissions
+            .and_then(|p| field_string(p, "owner_id"))
+            .map(normalize_id)
+        {
             if !is_null_uuid(&owner) {
                 owners.insert(owner.to_ascii_lowercase());
             }
@@ -206,6 +226,7 @@ pub fn parse_cache_with_progress(
         let linked_target_id = if is_link {
             field_string(map, "linked_id")
                 .or_else(|| field_string(map, "asset_id"))
+                .map(normalize_id)
                 .filter(|value| !is_null_uuid(value))
         } else {
             None
@@ -229,11 +250,6 @@ pub fn parse_cache_with_progress(
             .and_then(|value| uuid::Uuid::parse_str(&value).ok())
             .filter(|value| !value.is_nil())
             .map(|value| value.hyphenated().to_string());
-        if let Some(owner) = permissions.and_then(|p| field_string(p, "owner_id")) {
-            if !is_null_uuid(&owner) {
-                owners.insert(owner.to_ascii_lowercase());
-            }
-        }
         raw_items.push(InventoryItem {
             id,
             avatar_id: String::new(),
@@ -244,7 +260,9 @@ pub fn parse_cache_with_progress(
             asset_type: asset_type.clone(),
             inventory_type: inventory_type.clone(),
             kind: item_kind(&asset_type),
-            creator_id: permissions.and_then(|p| field_string(p, "creator_id")),
+            creator_id: permissions
+                .and_then(|p| field_string(p, "creator_id"))
+                .map(normalize_id),
             owner_mask: permissions
                 .and_then(|p| p.get("owner_mask"))
                 .and_then(as_i64)
@@ -432,6 +450,15 @@ fn as_i64(value: &Value) -> Option<i64> {
         Value::Date(value) => Some(*value as i64),
         Value::String(value) => value.parse().ok(),
         _ => None,
+    }
+}
+
+/// Store UUIDs in the canonical lowercase hyphenated form so string-typed or
+/// upper-case IDs still join parents, links and Firestorm selections.
+fn normalize_id(value: String) -> String {
+    match uuid::Uuid::parse_str(value.trim()) {
+        Ok(parsed) => parsed.hyphenated().to_string(),
+        Err(_) => value,
     }
 }
 
@@ -631,6 +658,55 @@ mod tests {
             alternate_grid.avatar_id,
             "20000000-0000-0000-0000-000000000002@grid_test"
         );
+    }
+
+    #[test]
+    fn normalizes_string_uuids_and_skips_duplicate_records() {
+        let mut out = SUPPORTED_FIRESTORM_CACHE_VERSION.to_be_bytes().to_vec();
+        map_start(&mut out, 2);
+        key(&mut out, "categories");
+        array_start(&mut out, 2);
+        for _ in 0..2 {
+            map_start(&mut out, 4);
+            key(&mut out, "folder_id");
+            string(&mut out, "1000000A-0000-0000-0000-000000000001");
+            key(&mut out, "parent_id");
+            string(&mut out, "00000000-0000-0000-0000-000000000000");
+            key(&mut out, "owner_id");
+            string(&mut out, "2000000A-0000-0000-0000-000000000002");
+            key(&mut out, "name");
+            string(&mut out, "Closet");
+            out.push(b'}');
+        }
+        out.push(b']');
+        key(&mut out, "items");
+        array_start(&mut out, 2);
+        for name in ["First copy", "Second copy"] {
+            map_start(&mut out, 4);
+            key(&mut out, "item_id");
+            string(&mut out, "3000000A-0000-0000-0000-000000000003");
+            key(&mut out, "parent_id");
+            string(&mut out, "1000000a-0000-0000-0000-000000000001");
+            key(&mut out, "type");
+            string(&mut out, "object");
+            key(&mut out, "name");
+            string(&mut out, name);
+            out.push(b'}');
+        }
+        out.push(b']');
+        out.push(b'}');
+
+        let snapshot = parse_cache(&out).unwrap();
+        assert_eq!(snapshot.avatar_id, "2000000a-0000-0000-0000-000000000002");
+        assert_eq!(snapshot.categories.len(), 1);
+        assert_eq!(
+            snapshot.categories[0].id,
+            "1000000a-0000-0000-0000-000000000001"
+        );
+        assert_eq!(snapshot.items.len(), 1);
+        assert_eq!(snapshot.items[0].id, "3000000a-0000-0000-0000-000000000003");
+        assert_eq!(snapshot.items[0].name, "First copy");
+        assert_eq!(snapshot.items[0].path, vec!["Closet"]);
     }
 
     #[test]

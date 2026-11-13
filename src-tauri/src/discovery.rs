@@ -361,6 +361,9 @@ fn configured_cache_directory() -> Option<PathBuf> {
     }
 }
 
+/// Read a string setting from a viewer LLSD settings file. Viewer `settings.xml`
+/// files store each setting as a map (`Comment`, `Persist`, `Type`, `Value`), so
+/// accept both that layout and a bare `<key>Name</key><string>…</string>` pair.
 fn llsd_string_setting(xml: &str, setting: &str) -> Option<String> {
     let mut reader = Reader::from_str(xml);
     let mut reading_key = false;
@@ -368,6 +371,10 @@ fn llsd_string_setting(xml: &str, setting: &str) -> Option<String> {
     let mut expect_string = false;
     let mut reading_string = false;
     let mut value = String::new();
+    // Number of currently open <map> elements, and the depth of the map that
+    // describes the requested setting once its key has been seen.
+    let mut depth = 0usize;
+    let mut setting_map_depth: Option<usize> = None;
 
     loop {
         match reader.read_event().ok()? {
@@ -380,6 +387,13 @@ fn llsd_string_setting(xml: &str, setting: &str) -> Option<String> {
                     expect_string = false;
                     reading_string = true;
                     value.clear();
+                }
+                "map" => {
+                    if expect_string && setting_map_depth.is_none() {
+                        setting_map_depth = Some(depth + 1);
+                    }
+                    expect_string = false;
+                    depth += 1;
                 }
                 _ if expect_string => expect_string = false,
                 _ => {}
@@ -418,11 +432,22 @@ fn llsd_string_setting(xml: &str, setting: &str) -> Option<String> {
             Event::End(element) => match element.local_name().as_ref() {
                 "key" if reading_key => {
                     reading_key = false;
-                    expect_string = key.trim() == setting;
+                    let name = key.trim();
+                    expect_string = match setting_map_depth {
+                        Some(map_depth) => map_depth == depth && name == "Value",
+                        None => depth <= 1 && name == setting,
+                    };
                 }
                 "string" if reading_string => {
                     let value = value.trim();
                     return (!value.is_empty()).then(|| value.to_string());
+                }
+                "map" => {
+                    if setting_map_depth == Some(depth) {
+                        // The setting's map closed without a string Value.
+                        return None;
+                    }
+                    depth = depth.saturating_sub(1);
                 }
                 _ => {}
             },
@@ -570,6 +595,7 @@ pub fn discover_stock_firestorm_executable() -> Option<String> {
                         return Some(
                             candidate
                                 .canonicalize()
+                                .map(crate::leap::strip_windows_verbatim_prefix)
                                 .unwrap_or(candidate)
                                 .to_string_lossy()
                                 .into_owned(),
@@ -628,6 +654,50 @@ mod tests {
         assert_eq!(
             llsd_string_setting(settings, "OtherPreference"),
             Some("private value".into())
+        );
+    }
+
+    #[test]
+    fn reads_viewer_settings_value_from_the_per_setting_map() {
+        let settings = r#"<?xml version="1.0" ?>
+<llsd>
+<map>
+    <key>AvatarNameTagMode</key>
+    <map>
+        <key>Comment</key><string>CacheLocation decoy text</string>
+        <key>Type</key><string>S32</string>
+        <key>Value</key><integer>1</integer>
+    </map>
+    <key>CacheLocation</key>
+    <map>
+        <key>Comment</key>
+        <string>Controls the location of the local disk cache</string>
+        <key>Persist</key>
+        <integer>1</integer>
+        <key>Type</key>
+        <string>String</string>
+        <key>Value</key>
+        <string>D:\SL Cache</string>
+    </map>
+</map>
+</llsd>"#;
+        assert_eq!(
+            llsd_string_setting(settings, "CacheLocation"),
+            Some(r"D:\SL Cache".into())
+        );
+        assert_eq!(
+            llsd_string_setting(
+                r#"<llsd><map><key>CacheLocation</key><map><key>Comment</key><string>x</string><key>Value</key><string /></map></map></llsd>"#,
+                "CacheLocation"
+            ),
+            None
+        );
+        assert_eq!(
+            llsd_string_setting(
+                r#"<llsd><map><key>CacheLocation</key><map><key>Comment</key><string>x</string></map><key>Value</key><string>wrong</string></map></llsd>"#,
+                "CacheLocation"
+            ),
+            None
         );
     }
 

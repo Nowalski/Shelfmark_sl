@@ -204,7 +204,9 @@ fn import_snapshot_with_cache_dir_progress(
     report: &mut dyn FnMut(&str, u64, Option<u64>),
 ) -> Result<ImportSummary, String> {
     check_import_cancelled(is_cancelled)?;
-    let tx = connection.transaction().map_err(db_error)?;
+    let tx = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(db_error)?;
     let now = now_timestamp();
     let recent_cutoff = now.saturating_sub(30 * 24 * 60 * 60);
     let mut candidate_counts = CandidateCounts::default();
@@ -1323,7 +1325,9 @@ pub fn update_tags(
         .take(16)
         .collect::<Vec<_>>();
     let mut connection = open_connection(app)?;
-    let tx = connection.transaction().map_err(db_error)?;
+    let tx = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(db_error)?;
     let exists = tx
         .query_row(
             "SELECT 1 FROM inventory_items WHERE avatar_id=?1 AND item_id=?2",
@@ -1399,7 +1403,9 @@ pub fn replace_profile_tags(
     }
 
     let mut connection = open_connection(app)?;
-    let tx = connection.transaction().map_err(db_error)?;
+    let tx = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(db_error)?;
     for profile in profiles {
         replace_avatar_tags_in_transaction(&tx, &profile.avatar_id, &profile.item_tags)?;
     }
@@ -1427,7 +1433,9 @@ fn replace_avatar_tags_in(
     item_tags: &HashMap<String, Vec<String>>,
 ) -> Result<bool, String> {
     validate_avatar_tags(item_tags)?;
-    let tx = connection.transaction().map_err(db_error)?;
+    let tx = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(db_error)?;
     let indexed = replace_avatar_tags_in_transaction(&tx, avatar_id, item_tags)?;
     tx.commit().map_err(db_error)?;
     Ok(indexed)

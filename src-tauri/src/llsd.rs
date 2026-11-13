@@ -78,7 +78,9 @@ impl Parser<'_> {
             b'r' => Ok(Value::Real(f64::from_bits(u64::from_be_bytes(
                 self.take(8)?.try_into().unwrap(),
             )))),
-            b'd' => Ok(Value::Date(f64::from_bits(u64::from_be_bytes(
+            // Unlike 'r' reals, the reference LLSD binary formatter writes dates
+            // in host (little-endian) byte order without network conversion.
+            b'd' => Ok(Value::Date(f64::from_bits(u64::from_le_bytes(
                 self.take(8)?.try_into().unwrap(),
             )))),
             b'u' => Ok(Value::Uuid(format_uuid(self.take(16)?))),
@@ -233,6 +235,22 @@ mod tests {
                 Value::Integer(7),
                 Value::Uuid("00010203-0405-0607-0809-0a0b0c0d0e0f".into()),
             ])
+        );
+    }
+
+    #[test]
+    fn reads_binary_dates_little_endian_and_reals_big_endian() {
+        let mut data = vec![b'['];
+        data.extend(2u32.to_be_bytes());
+        data.push(b'd');
+        data.extend(1_700_000_000.5f64.to_le_bytes());
+        data.push(b'r');
+        data.extend(2.25f64.to_be_bytes());
+        data.push(b']');
+        let (value, _) = parse(&data).unwrap();
+        assert_eq!(
+            value,
+            Value::Array(vec![Value::Date(1_700_000_000.5), Value::Real(2.25)])
         );
     }
 

@@ -124,6 +124,7 @@ impl LeapController {
 
         let executable = Path::new(executable_path)
             .canonicalize()
+            .map(strip_windows_verbatim_prefix)
             .map_err(|error| format!("Could not open that Firestorm executable: {error}"))?;
         if !executable.is_file()
             || !executable
@@ -601,7 +602,7 @@ impl LeapController {
         let destination_is_trash =
             destination.get("type").and_then(JsonValue::as_str) == Some("trash");
         log_move_diagnostic("move.live_item_and_destination_loaded");
-        if before.parent_id == destination_id {
+        if before.parent_id.eq_ignore_ascii_case(&destination_id) {
             return Ok(LeapMoveResult {
                 item: before.clone(),
                 previous_parent_id: before.parent_id,
@@ -669,7 +670,7 @@ impl LeapController {
         for _ in 0..12 {
             thread::sleep(Duration::from_millis(250));
             let after = self.read_inventory_item(&item_id)?;
-            if after.parent_id == destination_id {
+            if after.parent_id.eq_ignore_ascii_case(&destination_id) {
                 log_move_diagnostic("move.live_parent_verification_succeeded");
                 return Ok(LeapMoveResult {
                     item: after,
@@ -1584,6 +1585,34 @@ fn move_failure_stage(error: &str) -> &'static str {
     }
 }
 
+/// `canonicalize` on Windows returns `\\?\C:\...` verbatim paths. The viewer
+/// derives its app_settings/skins paths from its own module path and joins
+/// them with '/', which verbatim paths do not accept, so launch it through
+/// the ordinary drive-letter or UNC form whenever that is equivalent.
+pub(crate) fn strip_windows_verbatim_prefix(path: PathBuf) -> PathBuf {
+    let Some(text) = path.to_str() else {
+        return path;
+    };
+    // Keep long paths verbatim: only the prefixed form can exceed MAX_PATH.
+    if text.len() >= 250 {
+        return path;
+    }
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = text.strip_prefix(r"\\?\") {
+        let bytes = rest.as_bytes();
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && bytes[2] == b'\\'
+        {
+            return PathBuf::from(rest);
+        }
+    }
+    path
+}
+
 fn normalize_uuid(value: &str, label: &str) -> Result<String, String> {
     let parsed =
         uuid::Uuid::parse_str(value).map_err(|_| format!("The {label} UUID is invalid."))?;
@@ -1634,4 +1663,32 @@ fn find_first_string(value: &JsonValue, keys: &[&str]) -> Option<String> {
             .and_then(JsonValue::as_str)
             .map(str::to_owned)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_windows_verbatim_prefix;
+    use std::path::PathBuf;
+
+    #[test]
+    fn strips_only_equivalent_windows_verbatim_prefixes() {
+        assert_eq!(
+            strip_windows_verbatim_prefix(PathBuf::from(
+                r"\\?\C:\Program Files\Firestorm-Releasex64\Firestorm-Releasex64.exe"
+            )),
+            PathBuf::from(r"C:\Program Files\Firestorm-Releasex64\Firestorm-Releasex64.exe")
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(PathBuf::from(r"\\?\UNC\server\share\fs.exe")),
+            PathBuf::from(r"\\server\share\fs.exe")
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(PathBuf::from(r"\\?\Volume{abc}\fs.exe")),
+            PathBuf::from(r"\\?\Volume{abc}\fs.exe")
+        );
+        assert_eq!(
+            strip_windows_verbatim_prefix(PathBuf::from("/opt/firestorm/firestorm")),
+            PathBuf::from("/opt/firestorm/firestorm")
+        );
+    }
 }
