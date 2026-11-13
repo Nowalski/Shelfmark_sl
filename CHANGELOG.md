@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1 — 2026-11-13
+
+- Added Aurora Viewer support: Shelfmark finds Aurora's encrypted inventory cache, reads Aurora's cache key from the system credential store (read-only), and imports the snapshot like a Firestorm one. Live actions remain Firestorm-only. See [Aurora notes](docs/AURORA.md).
+- Fixed binary LLSD dates being read with the wrong byte order.
+- Fixed a custom Firestorm cache location in settings.xml not being found.
+- Fixed imports aborting on a repeated folder or item id, and folder links failing to match on upper-case UUIDs.
+- Fixed "database is locked" errors when saving tags during other writes.
+- Search now matches multi-word queries across name, folder and tags, and highlights matching folders.
+- Menus close on outside click; arrow keys move through result lists; dialogs trap and restore focus.
+- Improved text contrast, empty states and labels for screen readers.
+- Refreshed the project page with a dark theme, larger text and an FAQ.
+
 ## 0.2.0 — 2026-10-21
 
 - Added an optional Firestorm Mini viewer for confirmed, single-item Trash moves on Windows.
