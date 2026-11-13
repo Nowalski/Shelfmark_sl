@@ -1,3 +1,4 @@
+mod aurora;
 mod discovery;
 mod inventory;
 mod leap;
@@ -271,7 +272,7 @@ fn import_inventory_cache_blocking(
 ) -> Result<ImportResult, String> {
     let cache_path = std::path::PathBuf::from(&path);
     if !cache_path.is_file() {
-        return Err("Choose a Firestorm inventory cache file.".into());
+        return Err("Choose a Firestorm or Aurora inventory cache file.".into());
     }
     let before = std::fs::metadata(&cache_path)
         .map_err(|e| format!("Could not inspect the selected file: {e}"))?;
@@ -330,15 +331,22 @@ fn import_inventory_cache_blocking(
     if before.len() != after.len()
         || before_modified != after.modified().unwrap_or(SystemTime::UNIX_EPOCH)
     {
-        return Err("The cache changed while Shelfmark was reading it. Wait for Firestorm to finish writing, then import again. The original file was not changed.".into());
+        return Err("The cache changed while Shelfmark was reading it. Wait for the viewer to finish writing, then import again. The original file was not changed.".into());
     }
     let is_cancelled = || cancelled.load(Ordering::Relaxed);
     report("decompressing", 0, None);
-    let mut snapshot = inventory::parse_cache_with_progress(&bytes, &is_cancelled, &mut report)?;
+    let snapshot = if aurora::is_sealed(&bytes) {
+        let key = aurora::load_key()?;
+        aurora::parse_sealed_inventory(bytes, &cache_path, &key, &is_cancelled, &mut report)?
+    } else {
+        let mut snapshot =
+            inventory::parse_cache_with_progress(&bytes, &is_cancelled, &mut report)?;
+        inventory::apply_cache_namespace(&mut snapshot, &cache_path)?;
+        snapshot
+    };
     if is_cancelled() {
         return Err(crate::llsd::CANCELLED_MESSAGE.into());
     }
-    inventory::apply_cache_namespace(&mut snapshot, &cache_path)?;
     let cache_dir = cache_path
         .parent()
         .ok_or("The selected cache needs a parent folder so Shelfmark can locate local Firestorm thumbnails.")?;

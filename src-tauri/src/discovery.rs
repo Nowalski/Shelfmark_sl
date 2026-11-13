@@ -14,6 +14,8 @@ pub struct CacheCandidate {
     pub avatar_id: String,
     pub bytes: u64,
     pub modified_at_ms: i64,
+    /// Which viewer wrote the cache: "firestorm" or "aurora".
+    pub viewer: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -23,24 +25,55 @@ pub struct FirestormDiscovery {
     pub cache_directories: Vec<String>,
     pub candidates: Vec<CacheCandidate>,
     pub avatar_names: HashMap<String, String>,
+    pub aurora_installed: bool,
+    pub aurora_running: Option<bool>,
+    /// Why Aurora caches could not be listed, when Aurora is installed.
+    pub aurora_notice: Option<String>,
 }
 
 /// Find likely inventory snapshots in Firestorm's standard and configured cache directories.
 /// This reads process names, directory entries and file metadata, then reads only matching names
 /// from Firestorm's bounded local avatar-name cache. Inventory snapshot bytes remain unopened.
 pub fn discover_firestorm_caches() -> FirestormDiscovery {
-    let directories = cache_directories_to_check();
+    let mut directories = cache_directories_to_check();
+    let mut candidates = discover_in(directories.clone());
+
+    // Aurora Viewer keeps sealed caches whose names are keyed hashes; only
+    // files matched to a known Aurora account are offered here.
+    let aurora = crate::aurora::discover();
+    let aurora_unmatched = aurora
+        .candidates
+        .iter()
+        .filter(|candidate| candidate.avatar_id.is_empty())
+        .count();
+    candidates.extend(
+        aurora
+            .candidates
+            .into_iter()
+            .filter(|candidate| !candidate.avatar_id.is_empty()),
+    );
+    candidates.sort_by(|left, right| right.modified_at_ms.cmp(&left.modified_at_ms));
+    let aurora_dirs: Vec<PathBuf> = aurora.cache_directories.iter().map(PathBuf::from).collect();
+    directories.extend(aurora_dirs);
+
     let cache_directories = directories
         .iter()
         .map(|path| path.to_string_lossy().into_owned())
         .collect();
-    let candidates = discover_in(directories.clone());
     let avatar_ids = candidates
         .iter()
         .map(|candidate| candidate.avatar_id.clone())
         .collect::<Vec<_>>();
+    let aurora_notice = aurora.key_error.or_else(|| {
+        (aurora_unmatched > 0).then(|| {
+            format!("{aurora_unmatched} Aurora inventory cache file(s) could not be matched to an Aurora account on this computer. Use Browse to choose one directly.")
+        })
+    });
     FirestormDiscovery {
         viewer_running: firestorm_is_running(),
+        aurora_installed: aurora.installed,
+        aurora_running: aurora.viewer_running,
+        aurora_notice,
         cache_directories,
         avatar_names: read_avatar_names(&directories, &avatar_ids),
         candidates,
@@ -49,7 +82,10 @@ pub fn discover_firestorm_caches() -> FirestormDiscovery {
 
 /// Resolve names for already-known avatar/grid IDs without scanning inventory directories.
 pub fn resolve_firestorm_avatar_names(avatar_ids: &[String]) -> HashMap<String, String> {
-    read_avatar_names(&cache_directories_to_check(), avatar_ids)
+    let mut directories = cache_directories_to_check();
+    // Aurora keeps a compatible avatar_name_cache.xml in its cache root.
+    directories.extend(crate::aurora::cache_dirs());
+    read_avatar_names(&directories, avatar_ids)
 }
 
 const MAX_AVATAR_NAME_CACHE_BYTES: u64 = 4 * 1024 * 1024;
@@ -518,6 +554,9 @@ pub fn inspect_cache_file(path: &str) -> Result<CacheCandidate, String> {
     if !path.is_file() {
         return Err("Choose a Firestorm inventory cache file.".into());
     }
+    if file_starts_with_aurora_magic(&path) {
+        return crate::aurora::inspect_cache_file(&path);
+    }
     let file_name = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -538,7 +577,16 @@ pub fn inspect_cache_file(path: &str) -> Result<CacheCandidate, String> {
         avatar_id,
         bytes: metadata.len(),
         modified_at_ms,
+        viewer: "firestorm".into(),
     })
+}
+
+fn file_starts_with_aurora_magic(path: &Path) -> bool {
+    let mut head = [0_u8; 4];
+    std::fs::File::open(path)
+        .and_then(|mut file| std::io::Read::read_exact(&mut file, &mut head))
+        .is_ok()
+        && crate::aurora::is_sealed_magic(&head)
 }
 
 fn default_cache_directories() -> Vec<PathBuf> {

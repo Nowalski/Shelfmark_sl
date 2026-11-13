@@ -8,7 +8,7 @@
 
 <p align="center">
   <strong>A desktop app for your Second Life inventory.</strong><br>
-  Search your Firestorm snapshot, keep notes and tags, and send selected items to Trash on Windows.
+  Search your Firestorm or Aurora Viewer snapshot, keep notes and tags, and send selected items to Trash on Windows.
 </p>
 
 <p align="center">
@@ -24,16 +24,17 @@
   <a href="docs/USER_GUIDE.md">User guide</a> ·
   <a href="docs/FAQ.md">FAQ</a> ·
   <a href="docs/FIRESTORM.md">Firestorm notes</a> ·
+  <a href="docs/AURORA.md">Aurora notes</a> ·
   <a href="docs/BUILDING.md">Build from source</a>
 </p>
 
-Shelfmark reads a Firestorm inventory snapshot and builds a searchable catalogue on your computer. On Windows, you can connect Firestorm and move a selected item to Trash without leaving Shelfmark. The optional Firestorm Mini viewer adds a direct, confirmed route for a single-item Trash move.
+Shelfmark reads a Firestorm or [Aurora Viewer](docs/AURORA.md) inventory snapshot and builds a searchable catalogue on your computer. On Windows, you can connect Firestorm and move a selected item to Trash without leaving Shelfmark. The optional Firestorm Mini viewer adds a direct, confirmed route for a single-item Trash move.
 
 ## Download and start
 
-Download Shelfmark for your platform from [GitHub Releases](https://github.com/Nowalski/Shelfmark_sl/releases/latest). To move items to Trash from the packaged Windows app, also install the [experimental Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788). It can sit alongside stock Firestorm, but has no sound or voice. Open Shelfmark, choose **Import Firestorm cache**, select the avatar snapshot you want, and confirm. Shelfmark checks common cache locations; choose **Browse** if yours is elsewhere.
+Download Shelfmark for your platform from [GitHub Releases](https://github.com/Nowalski/Shelfmark_sl/releases/latest). To move items to Trash from the packaged Windows app, also install the [experimental Firestorm Mini viewer](https://github.com/Nowalski/Shelfmark_sl/releases/tag/firestorm-mini-7.2.5.81788). It can sit alongside stock Firestorm, but has no sound or voice. Open Shelfmark, choose **Import inventory cache**, select the avatar snapshot you want, and confirm. Shelfmark checks common cache locations; choose **Browse** if yours is elsewhere.
 
-For the newest snapshot, close Firestorm before importing or refreshing so the viewer has a chance to save its cache. See the [user guide](docs/USER_GUIDE.md) for the full walkthrough.
+For the newest snapshot, close the viewer before importing or refreshing so the viewer has a chance to save its cache. See the [user guide](docs/USER_GUIDE.md) for the full walkthrough.
 
 ## What Shelfmark does
 

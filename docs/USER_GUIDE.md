@@ -4,7 +4,7 @@ Shelfmark turns a Firestorm inventory cache into a searchable catalogue stored o
 
 ## Import a snapshot
 
-1. Open the desktop app and choose **Import Firestorm cache** in the sidebar or Settings.
+1. Open the desktop app and choose **Import inventory cache** in the sidebar or Settings.
 2. Shelfmark checks the usual cache folders and lists matching files. During discovery it reads file names, dates, and optional cached avatar names; it does not parse an inventory snapshot yet.
 3. Select the avatar snapshot you want. Add an optional local label if the avatar name is unclear.
 4. Choose **Import selected avatar** and confirm. Shelfmark then reads that cache and builds its local index.

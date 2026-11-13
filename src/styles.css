@@ -1049,3 +1049,10 @@ html[data-theme='dark'] .home-primary:disabled { color: #b7c2b2; background: #39
   .table-labels { grid-template-columns: 29px minmax(0, 1fr) 74px; gap: 8px; }
   .table-labels span:nth-child(2) { display: none; }
 }
+
+/* Viewer badges and Aurora notice in the cache chooser */
+.viewer-badge { display: inline-block; margin-right: 6px; padding: 0 6px; border: 1px solid var(--line, #d9ddd5); border-radius: 999px; font-size: 10px; font-weight: 650; letter-spacing: .3px; line-height: 16px; text-transform: uppercase; vertical-align: 1px; opacity: .85; }
+.viewer-badge.is-aurora { color: #4b4f8f; border-color: #c9cbe8; background: #f1f1fa; }
+html[data-theme='dark'] .viewer-badge.is-aurora { color: #c9cbf5; border-color: #4b4f7a; background: #2c2e45; }
+.cache-dialog-notice { margin-bottom: 12px; padding: 9px 10px; border: 1px solid #c9cbe8; border-radius: 4px; background: #f4f4fb; color: #3f4377; font-size: 12px; line-height: 1.5; }
+html[data-theme='dark'] .cache-dialog-notice { color: #d4d6f7; background: #2a2c40; border-color: #4b4f7a; }

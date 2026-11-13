@@ -130,7 +130,19 @@ pub fn parse_cache_with_progress(
             "Unexpected data follows the inventory cache. The file has not been changed.".into(),
         );
     }
-    let root = as_map(&root).ok_or("The decoded cache does not contain an inventory map.")?;
+    snapshot_from_root(&root, format_version, is_cancelled, report)
+}
+
+/// Build a snapshot from a decoded Firestorm-shaped inventory map
+/// (`categories` and `items` arrays). Also used for other viewers' caches
+/// after they are translated to this shape (see `aurora.rs`).
+pub fn snapshot_from_root(
+    root: &Value,
+    format_version: u32,
+    is_cancelled: &dyn Fn() -> bool,
+    report: &mut dyn FnMut(&str, u64, Option<u64>),
+) -> Result<Snapshot, String> {
+    let root = as_map(root).ok_or("The decoded cache does not contain an inventory map.")?;
     let category_values = as_array(root.get("categories")).unwrap_or_default();
     let item_values = as_array(root.get("items")).unwrap_or_default();
     if category_values.is_empty() && item_values.is_empty() {

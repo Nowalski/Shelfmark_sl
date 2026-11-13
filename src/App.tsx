@@ -30,8 +30,8 @@ type EmptyFoldersPageResult = { folders: FolderSummary[]; hasMore: boolean; tota
 type InventoryLinkTarget = { id: string; name: string; path: string[]; parentFolderId: string; isFolder: boolean };
 type CandidateFilter = 'All clues' | 'Demo-like name' | 'Possible package' | 'Possible body-fit variant' | 'Possible duplicate' | 'Notecard' | 'Landmark';
 type SortMode = 'Relevance' | 'Name A–Z' | 'Newest first';
-type CacheCandidate = { path: string; fileName: string; avatarId: string; bytes: number; modifiedAtMs: number };
-type FirestormDiscovery = { viewerRunning: boolean | null; cacheDirectories: string[]; candidates: CacheCandidate[]; avatarNames: Record<string, string> };
+type CacheCandidate = { path: string; fileName: string; avatarId: string; bytes: number; modifiedAtMs: number; viewer?: 'firestorm' | 'aurora' };
+type FirestormDiscovery = { viewerRunning: boolean | null; cacheDirectories: string[]; candidates: CacheCandidate[]; avatarNames: Record<string, string>; auroraInstalled?: boolean; auroraRunning?: boolean | null; auroraNotice?: string | null };
 type StockLeapStatus = { phase: string; connected: boolean; nativeBridgeEnabled: boolean; avatarId: string | null; apiNames: string[]; inventoryWindowPaths: string[]; inventoryPathsScanned: boolean; message: string };
 
 function sameStockLeapStatus(left: StockLeapStatus, right: StockLeapStatus) {
@@ -330,6 +330,7 @@ function App() {
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [cacheDialogOpen, setCacheDialogOpen] = useState(false);
   const [cacheCandidates, setCacheCandidates] = useState<CacheCandidate[]>([]);
+  const [auroraNotice, setAuroraNotice] = useState('');
   const [firestormRunning, setFirestormRunning] = useState<boolean | null>(null);
   const [stockLeapStatus, setStockLeapStatus] = useState<StockLeapStatus>({ phase: 'idle', connected: false, nativeBridgeEnabled: false, avatarId: null, apiNames: [], inventoryWindowPaths: [], inventoryPathsScanned: false, message: 'Stock Firestorm LEAP is not connected.' });
   const stockLeapConnectionRef = useRef({ connected: false, version: 0 });
@@ -1234,6 +1235,7 @@ function App() {
         : { ...current, label: found.avatarNames[current.id] ?? current.label });
       setFirestormRunning(found.viewerRunning);
       setFirestormCacheDirectories(found.cacheDirectories);
+      setAuroraNotice(found.auroraNotice ?? '');
     } catch (error) {
       if (version === cacheRequestVersionRef.current && cacheChooserActiveRef.current) setCacheDialogError(`Could not check Firestorm cache folders: ${String(error)}`);
     } finally {
@@ -2130,9 +2132,9 @@ function App() {
 
         <div className="sidebar-bottom">
           <div className="privacy-note"><ShieldCheck size={16} /><div><b>Kept on this device</b><span>Inventory stays local.</span></div></div>
-          <button className={`import-button ${busy ? 'working' : ''}`} aria-label={busy ? 'Reading Firestorm snapshot' : 'Import Firestorm cache'} title="Import Firestorm cache" onClick={() => void importCache()} disabled={busy}>
+          <button className={`import-button ${busy ? 'working' : ''}`} aria-label={busy ? 'Reading inventory snapshot' : 'Import inventory cache'} title="Import a Firestorm or Aurora Viewer inventory cache" onClick={() => void importCache()} disabled={busy}>
             {busy ? <span className="spinner" /> : <FolderOpen size={16} />}
-            <span>{busy ? 'Reading snapshot…' : 'Import Firestorm cache'}</span>
+            <span>{busy ? 'Reading snapshot…' : 'Import inventory cache'}</span>
           </button>
           <button className={`nav-item settings-nav ${page === 'settings' ? 'active' : ''}`} aria-label="Settings" title="Settings" onClick={() => navigateToPage('settings')}><Settings2 size={16} /><span>Settings</span></button>
         </div>
@@ -2388,7 +2390,7 @@ function App() {
         <div className="modal-actions"><button type="button" className="quiet-button" onClick={() => setNewCollectionDialogOpen(false)}>Cancel</button><button className="primary-action" type="submit" disabled={!collectionDraft.trim() || prefs.collections.length >= 1000}>Create collection</button></div>
       </FormDialog>}
 
-      {cacheDialogOpen && <CacheDiscoveryDialog avatarLabels={avatarLabels} avatarNames={firestormAvatarNames} candidates={cacheCandidates} viewerRunning={firestormRunning} cacheDirectories={firestormCacheDirectories} selectedCandidate={selectedCacheCandidate} discoveryBusy={cacheDiscoveryBusy} importing={busy} progress={importProgress} cancellationPending={importCancellationPending} error={cacheDialogError} onClose={closeCacheChooser} onSelect={(candidate) => { selectedCacheCandidateRef.current = candidate; setSelectedCacheCandidate(candidate); }} onImportSelected={(candidate, label) => void importCachePath(candidate.path, label)} onCancelImport={() => void cancelInventoryImport()} onBrowse={() => void browseForCache()} onRefresh={() => void refreshCacheDiscovery()} />}
+      {cacheDialogOpen && <CacheDiscoveryDialog avatarLabels={avatarLabels} avatarNames={firestormAvatarNames} candidates={cacheCandidates} viewerRunning={firestormRunning} cacheDirectories={firestormCacheDirectories} auroraNotice={auroraNotice} selectedCandidate={selectedCacheCandidate} discoveryBusy={cacheDiscoveryBusy} importing={busy} progress={importProgress} cancellationPending={importCancellationPending} error={cacheDialogError} onClose={closeCacheChooser} onSelect={(candidate) => { selectedCacheCandidateRef.current = candidate; setSelectedCacheCandidate(candidate); }} onImportSelected={(candidate, label) => void importCachePath(candidate.path, label)} onCancelImport={() => void cancelInventoryImport()} onBrowse={() => void browseForCache()} onRefresh={() => void refreshCacheDiscovery()} />}
       {helpOpen && <GuideDialog desktop={desktop} onClose={() => { setHelpOpen(false); window.requestAnimationFrame(() => helpTriggerRef.current?.focus()); }} onImport={() => { setHelpOpen(false); void importCache(); }} />}
       <input ref={profileBackupInputRef} className="profile-backup-input" type="file" accept=".json,application/json" onChange={(event) => void readProfileFile(event)} aria-label="Choose a Shelfmark profile file" />
       {profileRestore && <ProfileRestoreDialog backup={profileRestore} busy={profileBusy} onCancel={() => setProfileRestore(null)} onRestore={() => void applyProfileRestore()} />}
@@ -2729,8 +2731,8 @@ function SettingsPage({ desktop, avatar, summary, stockLeapStatus, stockLeapAvat
   </>;
 }
 
-function CacheDiscoveryDialog({ avatarLabels, avatarNames, candidates, viewerRunning, cacheDirectories, selectedCandidate, discoveryBusy, importing, progress, cancellationPending, error, onClose, onSelect, onImportSelected, onCancelImport, onBrowse, onRefresh }: {
-  avatarLabels: Record<string, string>; avatarNames: Record<string, string>; candidates: CacheCandidate[]; viewerRunning: boolean | null; cacheDirectories: string[]; selectedCandidate: CacheCandidate | null; discoveryBusy: boolean; importing: boolean; progress: ImportProgress | null; cancellationPending: boolean; error: string;
+function CacheDiscoveryDialog({ avatarLabels, avatarNames, candidates, viewerRunning, cacheDirectories, auroraNotice, selectedCandidate, discoveryBusy, importing, progress, cancellationPending, error, onClose, onSelect, onImportSelected, onCancelImport, onBrowse, onRefresh }: {
+  avatarLabels: Record<string, string>; avatarNames: Record<string, string>; candidates: CacheCandidate[]; viewerRunning: boolean | null; cacheDirectories: string[]; auroraNotice: string; selectedCandidate: CacheCandidate | null; discoveryBusy: boolean; importing: boolean; progress: ImportProgress | null; cancellationPending: boolean; error: string;
   onClose: () => void; onSelect: (candidate: CacheCandidate) => void; onImportSelected: (candidate: CacheCandidate, avatarLabel: string) => void; onCancelImport: () => void; onBrowse: () => void; onRefresh: () => void;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
@@ -2750,12 +2752,13 @@ function CacheDiscoveryDialog({ avatarLabels, avatarNames, candidates, viewerRun
 
   return <div className="modal-scrim cache-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget && !importing) onClose(); }}>
     <section ref={dialogRef} tabIndex={-1} className="cache-dialog" role="dialog" aria-modal="true" aria-labelledby="cache-dialog-title">
-      <div className="cache-dialog-heading"><div><span className="eyebrow">LOCAL FIRESTORM FILES</span><h2 id="cache-dialog-title">Choose a snapshot.</h2></div><button ref={closeRef} className="icon-button" aria-label="Close cache chooser" onClick={onClose} disabled={importing}><X size={16} /></button></div>
-      <p className="cache-dialog-intro">Choose the avatar snapshot to import. Shelfmark shows a saved local name or Firestorm’s cached avatar name when available. It reads only the matching name entry and file dates, and opens an inventory snapshot only after you confirm below.</p>
+      <div className="cache-dialog-heading"><div><span className="eyebrow">LOCAL VIEWER FILES</span><h2 id="cache-dialog-title">Choose a snapshot.</h2></div><button ref={closeRef} className="icon-button" aria-label="Close cache chooser" onClick={onClose} disabled={importing}><X size={16} /></button></div>
+      <p className="cache-dialog-intro">Choose the avatar snapshot to import. Shelfmark finds Firestorm and Aurora Viewer snapshots, and shows a saved local name or the viewer’s cached avatar name when available. It reads only the matching name entry and file dates, and opens an inventory snapshot only after you confirm below.</p>
       <div className="cache-detection-status" role="status"><span className={`cache-detection-dot ${viewerRunning === true ? 'is-running' : ''}`} /><span><b>{discoveryBusy ? 'Checking Firestorm' : viewerRunning === true ? 'Firestorm process detected' : viewerRunning === false ? 'No Firestorm process detected' : 'Viewer status unavailable'}</b><small>{cacheDirectories.length ? <>Checking {cacheDirectories.map((directory, index) => <span key={directory}>{index ? ' · ' : ''}<code>{directory}</code></span>)}</> : 'Checking the standard Firestorm cache location'}<span>Launch Firestorm or the patched Firestorm Mini build from Home to connect a viewer. The browser preview stays read-only.</span></small></span><button className="cache-rescan-button" onClick={onRefresh} disabled={discoveryBusy || importing}><RefreshCw size={12} /> Rescan</button></div>
       {error && <div className="cache-dialog-error" role="alert">{error}</div>}
+      {auroraNotice && !discoveryBusy && <div className="cache-dialog-notice" role="status"><b>Aurora Viewer</b> {auroraNotice}</div>}
       {importing && progress && <ImportProgressView progress={progress} cancellationPending={cancellationPending} />}
-      {discoveryBusy ? <div className="cache-discovery-loading"><span className="spinner local-spinner" /> Checking Firestorm cache folders…</div> : candidates.length ? <>
+      {discoveryBusy ? <div className="cache-discovery-loading"><span className="spinner local-spinner" /> Checking viewer cache folders…</div> : candidates.length ? <>
         <div className="cache-list-heading"><span>{candidates.length} {candidates.length === 1 ? 'cache file' : 'cache files'} found</span><small>Select an avatar snapshot; confirm before it is read</small></div>
         <input className="cache-filter-input" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter by avatar name, UUID or grid" aria-label="Filter detected cache files by avatar name, UUID or grid" />
         {selectedCandidate && <label className="avatar-label-field"><span>Local avatar name <small>Optional · stays on this device</small></span><input value={avatarLabel} maxLength={48} onChange={(event) => setAvatarLabelDraft({ avatarId: selectedCandidate.avatarId, value: event.target.value })} placeholder={avatarNames[selectedCandidate.avatarId] || 'For example, Salty Spicy'} aria-label="Optional local name for this avatar" /><code>{selectedCandidate.avatarId}</code></label>}
@@ -2764,7 +2767,7 @@ function CacheDiscoveryDialog({ avatarLabels, avatarNames, candidates, viewerRun
           const visibleName = savedName || shortId(candidate.avatarId);
           const selected = selectedCandidate?.path === candidate.path;
           return <button className={`cache-candidate ${selected ? 'is-selected' : ''}`} key={`${candidate.path}-${index}`} onClick={() => onSelect(candidate)} disabled={importing} aria-pressed={selected} title={`${visibleName} · ${candidate.avatarId}`} aria-label={`${visibleName}; ${savedName ? `${shortId(candidate.avatarId)}; ` : ''}modified ${formatCacheModified(candidate.modifiedAtMs)}; ${selected ? 'selected' : 'select'}`}>
-            <span className="cache-candidate-icon"><FolderOpen size={16} /></span><span className="cache-candidate-copy"><b>{visibleName}</b><small>{savedName ? `${shortId(candidate.avatarId)} · ` : ''}Modified {formatCacheModified(candidate.modifiedAtMs)} · {formatCacheSize(candidate.bytes)}</small></span><span className="cache-candidate-action">{selected ? 'Selected ✓' : 'Select'} </span>
+            <span className="cache-candidate-icon"><FolderOpen size={16} /></span><span className="cache-candidate-copy"><b>{visibleName}</b><small>{candidate.viewer === 'aurora' ? <span className="viewer-badge is-aurora">Aurora</span> : <span className="viewer-badge">Firestorm</span>}{savedName ? `${shortId(candidate.avatarId)} · ` : ''}Modified {formatCacheModified(candidate.modifiedAtMs)} · {formatCacheSize(candidate.bytes)}</small></span><span className="cache-candidate-action">{selected ? 'Selected ✓' : 'Select'} </span>
           </button>;
         })}</div>
       </> : <div className="cache-empty"><FolderOpen size={19} /><b>No inventory caches found in the checked folders.</b><span>{cacheDirectories.length ? <>Shelfmark checked {cacheDirectories.map((directory, index) => <span key={directory}>{index ? ', ' : ''}<code>{directory}</code></span>)}. You can also browse directly to an inventory cache file or confirm Firestorm’s location in Preferences → Network & Files → Directories → Cache Location.</> : <>Browse to a file, or check Firestorm Preferences → Network & Files → Directories → Cache Location.</>}</span></div>}
@@ -2830,7 +2833,7 @@ function GuideDialog({ desktop, onClose, onImport }: { desktop: boolean; onClose
     <section ref={dialogRef} tabIndex={-1} className="guide-modal" role="dialog" aria-modal="true" aria-labelledby="guide-title">
       <div className="guide-heading"><div><span className="eyebrow">A SHORT FIELD GUIDE</span><h2 id="guide-title">Find the thing you half remember.</h2><p>{desktop ? 'Search a local Firestorm snapshot, then use Firestorm for inventory changes.' : 'Explore a fictional sample catalogue. The browser preview cannot see Firestorm or change live inventory.'}</p></div><button ref={closeButtonRef} className="icon-button" aria-label="Close guide" onClick={onClose}><X size={17} /></button></div>
       <div className="guide-steps">
-        <article><span className="guide-number">01</span><div><h3>{desktop ? 'Choose a Firestorm snapshot' : 'Explore the sample first'}</h3><p>{desktop ? 'Open Import Firestorm cache, choose a detected avatar snapshot (or browse to one), give it an optional local name, and confirm. Shelfmark reads the selected cache only after you confirm.' : 'The browser preview uses fictional inventory. It cannot read files from Firestorm; use the desktop app to import a local snapshot.'}</p></div></article>
+        <article><span className="guide-number">01</span><div><h3>{desktop ? 'Choose a viewer snapshot' : 'Explore the sample first'}</h3><p>{desktop ? 'Open Import inventory cache, choose a detected Firestorm or Aurora Viewer snapshot (or browse to one), give it an optional local name, and confirm. Shelfmark reads the selected cache only after you confirm.' : 'The browser preview uses fictional inventory. It cannot read files from Firestorm; use the desktop app to import a local snapshot.'}</p></div></article>
         <article><span className="guide-number">02</span><div><h3>Search, or browse the folder tree</h3><p>Find items by name, path, description, or your tags. Open Folders to follow the cache hierarchy with breadcrumbs, then choose an item to inspect it. The desktop app can select a snapshot entry in the registered viewer when the matching avatar and grid are logged in. Use / or Ctrl/⌘ K to focus the active search.</p></div></article>
         <article><span className="guide-number">03</span><div><h3>Add your own context</h3><p>Add personal tags and notes, save items into collections, and choose reference photos or collection covers. Images stay in this app profile on this device; Shelfmark never uploads them.</p></div></article>
         <article><span className="guide-number">04</span><div><h3>{desktop ? 'Send items to Trash on Windows' : 'Use the desktop app for live inventory'}</h3><p>{desktop ? 'Install Firestorm Mini from its experimental GitHub release, then close all Firestorm windows. From Home, launch Firestorm Mini and choose its installed executable, then select the matching Second Life snapshot. Keep All Items open and clear the inventory search. Choose Move to Trash for one item and confirm it in Firestorm; Shelfmark checks the live location. This open build has no sound or voice. Close the viewer and refresh the saved snapshot afterward. Live Trash is not available on macOS or Linux.' : 'A browser cannot open Firestorm or read its cache. It stays on fictional sample data; use the installed desktop app to import a local snapshot. The experimental Firestorm Mini bridge is Windows-only.'}</p></div></article>

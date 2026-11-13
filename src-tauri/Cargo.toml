@@ -1,6 +1,6 @@
 [package]
 name = "shelfmark"
-version = "0.2.0"
+version = "0.2.1"
 description = "A local catalogue for Second Life inventory"
 authors = ["Shelfmark"]
 edition = "2021"
@@ -16,9 +16,11 @@ tauri-build = { version = "2", features = [] }
 base64 = "0.22"
 flate2 = "1"
 hayro-jpeg2000 = { version = "0.4", default-features = false }
+keyring = "4.2"
 llsd-rs = "0.1.7"
 png = "0.17"
 quick-xml = "0.42"
+ring = "0.17"
 rusqlite = { version = "0.37", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
